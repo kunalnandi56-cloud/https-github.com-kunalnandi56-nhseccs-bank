@@ -191,7 +191,7 @@ if("serviceWorker" in navigator&&location.protocol.indexOf("http")===0)window.ad
 window.__ie=null;window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();window.__ie=e});
 function gfStart(){
 (function(){
-var CUR="₹",dvAdmFy=0,dvFy=0,dbMon=new Date().toISOString().slice(0,7),dbMem="",divRates={tf:0,gf:0,sh:0,cv:0,ts:0},keep={code:"",user:"",mid:""},dirList=[],sessionUser=null,unsubs=[],authChecked=false,members=[],monthly=[],apps=[],disb=[],ltlList=[],adminList=[],rulesLoaded=false,forceChg=false,tab="home",db=null,canWrite=false,stage="loading",mview="home",editId=null,detId=null,rulesText="",selFy=0,selMo=0,installEv=null,isAdmin=false,meId=null,err="";
+var CUR="₹",dvAdmFy=0,dvFy=0,dbMon=new Date().toISOString().slice(0,7),dbMem="",divRates={tf:0,gf:0,sh:0,cv:0,ts:0},keep={code:"",user:"",mid:""},dirList=[],sessionUser=null,unsubs=[],authChecked=false,members=[],monthly=[],apps=[],disb=[],ltlList=[],adminList=[],rulesLoaded=false,forceChg=false,tab="home",db=null,canWrite=false,stage="loading",mview="home",editId=null,detId=null,rulesText="",selFy=0,selMo=0,installEv=null,isAdmin=false,meId=null,err="",lastErr="";
 var month=new Date().toISOString().slice(0,7);
 var MN=["January","February","March","April","May","June","July","August","September","October","November","December"];
 function fyOf(mo){var y=+mo.slice(0,4),m=+mo.slice(5,7);return m>=4?y:y-1}
@@ -344,7 +344,7 @@ function render(){
   if(stage!=="admin"&&stage!=="member"){
     var g="";
     if(stage==="loading")g=gate("Group Fund",'<div class="sub">Loading…</div>');
-    else if(stage==="nodb")g=gate("Group Fund",'<div class="sub">'+(GF.configured?'Cannot connect to the database. Check your internet connection and Firebase settings.':'Setup needed: open index.html and paste your Firebase settings.')+'</div>');
+    else if(stage==="nodb")g=gate("Group Fund",'<div class="sub">'+(GF.configured?'Cannot connect to the database. Check your internet connection, then tap Try again.':'Setup needed: open index.html and paste your Firebase settings.')+'</div>'+(lastErr?'<div class="note">Details: '+esc(lastErr)+'</div>':'')+'<br><button id="retry">Try again</button>');
     else if(stage==="lock")g=gate("Group Fund",'<div class="sub">Unlock with your fingerprint or face.</div><br><button id="unlock">Unlock</button><button class="g" id="lout">Use another account</button>');
     else if(stage==="choose")g=gate("Welcome",'<div class="sub">Choose how you would like to log in.</div><br><button class="b3d gold" id="lm">Member login</button><button class="b3d navy" id="la">Administrative login</button><button class="g" id="ginst">Install app</button>');
     else if(stage==="mlogin")g=gate("Member login",'<div class="fl">Society code</div><input class="pw" id="sc1" type="password" placeholder="Society code" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" value="'+esc(keep.code)+'"><div class="fl">Choose your name</div><select id="ms"><option value="">Choose your name</option>'+dirList.slice().sort(function(a,b){return (a.name||"").localeCompare(b.name||"")}).map(function(m){return '<option value="'+m.id+'"'+(keep.mid===m.id?' selected':'')+'>'+esc((m.name||"").toUpperCase())+'</option>'}).join("")+'</select><div class="fl">Password</div><input class="pw" id="mpn" type="password" placeholder="Password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"><button class="g" id="shw">Show / hide</button><button class="b3d gold" id="mgo">Login</button><button class="g" id="bk">Back</button>');
@@ -545,7 +545,7 @@ function bindMember(){
 function bindGate(){
   var q=$,go=function(id,fn){var e=q(id);if(e)e.onclick=fn};
   go("bk",function(){stage="choose";err="";render()});
-  go("ginst",doInstall);
+  go("ginst",doInstall);go("retry",function(){location.reload()});
   go("lm",function(){stage="mlogin";err="";render()});
   go("la",function(){stage="alogin";err="";render()});
   go("shw",togglePw);
@@ -725,7 +725,7 @@ function boot(){
   render()}
 (function(){
   if(!GF.configured){stage="nodb";render();return}
-  GF.watch("directory",null,"x",function(q){dirList=toList(q);if(stage==="mlogin")render()},function(){stage="nodb";render()});
+  GF.watch("directory",null,"x",function(q){dirList=toList(q);if(stage==="mlogin")render()},function(e){lastErr=(e&&(e.code||e.message))||"unknown error";stage="nodb";render()});
   GF.onAuth(function(u){if(!authChecked){authChecked=true;sessionUser=u;boot()}});
   db=GF.db;render();
 })();
@@ -786,3 +786,4 @@ window.dispatchEvent(new Event("gf-ready"));
 </script>
 </body>
 </html>
+
