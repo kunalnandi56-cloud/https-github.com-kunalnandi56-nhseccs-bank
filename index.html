@@ -176,6 +176,29 @@ button.mb{margin-bottom:12px}
 .totdiv{font-family:var(--serif);font-size:34px;font-weight:800;color:var(--hi);margin-top:16px;line-height:1.1;font-variant-numeric:lining-nums tabular-nums}
 .xt input,.xt select{min-width:130px;margin:0;min-height:40px;padding:6px 8px;width:100%}
 .xt td .pill{min-width:70px;min-height:32px}
+
+/* ===== v3: brighter look, print, locked fields ===== */
+html:root{--bg:#F6F9FD;--card:#FFFFFF;--tx:#0F1B2A;--mut:#566A80;--bd:#D3DDE9;--hi:#0E2A47;--field:#FFFFFF;--tint:rgba(14,42,71,.04);--ok:#0F7B5F;--bad:#A32638;--shadow:0 1px 0 rgba(255,255,255,.9) inset,0 14px 30px -22px rgba(14,42,71,.35);color-scheme:light}
+.hd{background:var(--pat),linear-gradient(135deg,#0F3A66 0%,#1C5A96 55%,#14477A 100%);background-size:120px auto,auto}
+body.gate{background:var(--pat),radial-gradient(120% 80% at 50% 0%,#2C74B8 0%,#17518A 55%,#0F3F6E 100%);background-size:120px auto,auto;background-attachment:fixed}
+.grid>.card:first-child,.tile.full{background:var(--pat),linear-gradient(135deg,#17508A,#2F78BC);background-size:120px auto,auto}
+.xt th{background:linear-gradient(180deg,#2A6DB0,#17508A)}
+body::after{opacity:.1}
+input:disabled,select:disabled,textarea:disabled{opacity:.72;background:var(--tint)}
+#bioin{--c1:#D3F1F3;--c2:#ADE2E7;--e:#62B0BA}
+#gms,#xdl{--c1:#E8E0F9;--c2:#D0C2F1;--e:#9585C7}
+#xprint{--c1:#DCEBFA;--c2:#B9D6F3;--e:#78A5D0}
+#edtog{--c1:#FBF4C4;--c2:#F1E48F;--e:#BDAE45}
+@page{size:landscape;margin:10mm}
+@media print{
+  body.printing{background:#fff!important}
+  body.printing *{visibility:hidden}
+  body.printing .pa,body.printing .pa *{visibility:visible}
+  body.printing .pa{position:absolute;left:0;top:0;width:100%;box-shadow:none;border:0}
+  body.printing .pa button,body.printing .pa select{display:none}
+  body.printing::after{display:none}
+  .xw{overflow:visible!important;border:0}.xt{font-size:9px}.xt th,.xt td{padding:4px 5px}
+}
 </style>
 </head>
 <body>
@@ -191,7 +214,7 @@ if("serviceWorker" in navigator&&location.protocol.indexOf("http")===0)window.ad
 window.__ie=null;window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();window.__ie=e});
 function gfStart(){
 (function(){
-var CUR="₹",dvAdmFy=0,dvFy=0,dbMon=new Date().toISOString().slice(0,7),dbMem="",divRates={tf:0,gf:0,sh:0,cv:0,ts:0},keep={code:"",user:"",mid:""},dirList=[],sessionUser=null,unsubs=[],authChecked=false,members=[],monthly=[],apps=[],disb=[],ltlList=[],adminList=[],rulesLoaded=false,forceChg=false,tab="home",db=null,canWrite=false,stage="loading",mview="home",editId=null,detId=null,rulesText="",selFy=0,selMo=0,installEv=null,isAdmin=false,meId=null,err="",lastErr="";
+var CUR="₹",dvAdmFy=0,dvFy=0,dbMon=new Date().toISOString().slice(0,7),dbMem="",divRates={tf:0,gf:0,sh:0,cv:0,ts:0,dv:0},keep={code:"",user:"",mid:""},dirList=[],sessionUser=null,unsubs=[],authChecked=false,members=[],monthly=[],apps=[],disb=[],ltlList=[],adminList=[],rulesLoaded=false,forceChg=false,tab="home",db=null,canWrite=false,stage="loading",mview="home",editId=null,detId=null,rulesText="",selFy=0,selMo=0,installEv=null,isAdmin=false,meId=null,err="",lastErr="",editMode=false,msSel="",msFy=0;
 var month=new Date().toISOString().slice(0,7);
 var MN=["January","February","March","April","May","June","July","August","September","October","November","December"];
 function fyOf(mo){var y=+mo.slice(0,4),m=+mo.slice(5,7);return m>=4?y:y-1}
@@ -251,10 +274,58 @@ function blank(v){return (v==null||v===0||v==="0"||v==="")?"":v}
 function now0(){return new Date().toISOString().slice(0,7)}
 function togglePw(){var els=document.querySelectorAll("input.pw");if(!els.length)return;var t=els[0].type==="password"?"text":"password";for(var k=0;k<els.length;k++)els[k].type=t}
 function admPw(email,pw){return email.indexOf("@admin.nhseccs.app")>0?pw+"#gf":pw}
+
+var NAVIDS={mon:1,dsel:1,dbmon:1,dbm:1,dvy:1,xsel:1,msel:1,msfy:1};
+function applyLock(){
+  if(stage!=="admin")return;var lock=!editMode;
+  document.querySelectorAll("#app input,#app select,#app textarea").forEach(function(el){if(!NAVIDS[el.id])el.disabled=lock});
+  document.querySelectorAll("#madd,#esave,#erst,#lsave,#rsave,#ltadd,#dsave,#dvsave2,#dbsave,#aasave,#cachg,[data-ap],[data-rj],[data-dm],[data-ed],[data-ld]").forEach(function(b){b.disabled=lock})}
+var RELS=["Wife","Husband","Son","Daughter","Father","Mother","Brother","Sister","Other"];
+function relOpts(sel){return '<option value="">Relation</option>'+RELS.map(function(x){return '<option'+(x===sel?' selected':'')+'>'+x+'</option>'}).join("")}
+function shareClose(m,mon){return effBal(m,mon,"openShare","shareM",1)+effCarry(m,mon,"shareM")}
+function doPrint(){
+  document.body.classList.add("printing");
+  var done=function(){document.body.classList.remove("printing");window.removeEventListener("afterprint",done)};
+  window.addEventListener("afterprint",done);setTimeout(function(){window.print()},60);setTimeout(done,90000)}
+function loadSheetJS(){return new Promise(function(res,rej){if(window.XLSX){res();return}var s2=document.createElement("script");s2.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";s2.onload=res;s2.onerror=rej;document.head.appendChild(s2)})}
+function saveBlob(name,text,type){var b=new Blob(["\ufeff"+text],{type:type});var a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},1500)}
+function tableCsv(t){return Array.prototype.map.call(t.rows,function(r){return Array.prototype.map.call(r.cells,function(c){return '"'+c.textContent.replace(/"/g,'""').trim()+'"'}).join(",")}).join("\r\n")}
+async function doDownload(name){
+  var tables=document.querySelectorAll(".pa table");if(!tables.length){toast("Nothing to download.");return}
+  try{
+    await loadSheetJS();var wb=XLSX.utils.book_new();
+    Array.prototype.forEach.call(tables,function(t,i){
+      var pv=t.parentElement&&t.parentElement.previousElementSibling,nm=(pv&&pv.tagName==="B"?pv.textContent:(tables.length>1?"Sheet"+(i+1):"Excel sheet")).replace(/[\\\/\?\*\[\]:]/g,"").slice(0,31)||"Sheet"+(i+1);
+      XLSX.utils.book_append_sheet(wb,XLSX.utils.table_to_sheet(t,{raw:true}),nm)});
+    XLSX.writeFile(wb,name+".xlsx");toast("Downloaded "+name+".xlsx",true)}
+  catch(e){saveBlob(name+".csv",Array.prototype.map.call(tables,tableCsv).join("\r\n\r\n"),"text/csv;charset=utf-8");toast("Downloaded "+name+".csv (opens in Excel)",true)}}
+function memberSheetTable(m,months){
+  var tot=new Array(17).fill(0),fl=[5,6,7,8,9,12,13,14,15,16];
+  var HH=["Month","Opening Share","Opening TF","Opening GF","LTL","STL","Share this Month","TF this Month","GF this Month","LTL Principal","STL Principal","LTL interest rate (%)","STL interest rate (%)","LTL Interest","STL Interest","Form","Registration","Total"];
+  var tb='<div class="xw"><table class="xt"><tr>'+HH.map(function(x){return '<th>'+x+'</th>'}).join("")+'</tr>';
+  months.forEach(function(t){var r=rowCalc(m,t);fl.forEach(function(k){tot[k]+=r[k]});
+    tb+='<tr><td class="n">'+MN[+t.slice(5,7)-1]+" "+t.slice(0,4)+'</td>'+r.map(function(v,k){return '<td'+(k===16?' class="tt"':'')+'>'+(k===10||k===11?v:Number(v).toLocaleString())+'</td>'}).join("")+'</tr>'});
+  return tb+'<tr class="t"><td class="n">TOTAL</td>'+tot.map(function(v,k){return '<td>'+(fl.indexOf(k)>=0?Number(v).toLocaleString():'')+'</td>'}).join("")+'</tr></table></div>'}
+function msheetView(){
+  var srt=members.slice().sort(function(a,b){return a.name.localeCompare(b.name)});
+  var fy=msFy||fyOf(now0());
+  var fo="";for(var y=fy-2;y<=fy+2;y++)fo+='<option value="'+y+'"'+(y===fy?' selected':'')+'>'+y+' – '+(y+1)+'</option>';
+  var h=topRow()+'<div class="card"><h2>Members Excel Sheet</h2><div class="fl">Name of the member</div><select id="msel" class="sel"><option value="">Choose the member</option>'+srt.map(function(x){return '<option value="'+x.id+'"'+(x.id===msSel?' selected':'')+'>'+esc(x.name)+'</option>'}).join("")+'</select><div class="fl">Financial year</div><select id="msfy" class="sel">'+fo+'</select></div>';
+  var m=members.find(function(x){return x.id===msSel});
+  if(!m)return h;
+  var ms=[4,5,6,7,8,9,10,11,12,1,2,3].map(function(k){return (k>=4?fy:fy+1)+"-"+String(k).padStart(2,"0")});
+  return h+'<div class="card pa"><h2>Excel sheet</h2><div><b>'+esc(m.name)+'</b></div><div class="note">April '+fy+' to March '+(fy+1)+'</div>'+memberSheetTable(m,ms)+'</div><button class="mb" id="xprint">Print</button><button class="mb" id="xdl">Download</button>'}
+/* biometric: the password is kept on this phone only, locked with a key the browser cannot export */
+function idbOpen(){return new Promise(function(res,rej){var r=indexedDB.open("gf_keys",1);r.onupgradeneeded=function(){r.result.createObjectStore("k")};r.onerror=function(){rej(r.error)};r.onsuccess=function(){res(r.result)}})}
+function idbGet(d){return new Promise(function(res,rej){var g=d.transaction("k").objectStore("k").get("main");g.onsuccess=function(){res(g.result)};g.onerror=function(){rej(g.error)}})}
+function idbPut(d,k){return new Promise(function(res,rej){var t=d.transaction("k","readwrite");t.objectStore("k").put(k,"main");t.oncomplete=res;t.onerror=function(){rej(t.error)}})}
+async function getKey(){var d=await idbOpen(),k=await idbGet(d);if(k)return k;k=await crypto.subtle.generateKey({name:"AES-GCM",length:256},false,["encrypt","decrypt"]);await idbPut(d,k);return k}
+async function encSecret(txt){var k=await getKey(),iv=crypto.getRandomValues(new Uint8Array(12)),ct=await crypto.subtle.encrypt({name:"AES-GCM",iv:iv},k,new TextEncoder().encode(txt));return b2s(iv)+"."+b2s(ct)}
+async function decSecret(x){var p=x.split("."),k=await getKey(),pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:s2b(p[0])},k,s2b(p[1]));return new TextDecoder().decode(pt)}
 var LOANS=["LTL","STL (Medical)","STL (Other)"];
 var STAGES=["Complete","1st installment","2nd installment","3rd installment","4th installment","5th installment"];
 var TABS=[["home","Summary"],["mem","Members"],["det","Details"],["led","Ledger"],["apps","Apps"],["disb","Loan disbursement"]];
-var TABON={ltl:"apps",dvform:"det"};
+var TABON={ltl:"apps",dvform:"det",msheet:"apps"};
 
 async function save(col,id,obj){
   if(!canWrite){toast("You have view-only access.");return}
@@ -322,7 +393,7 @@ function sheetView(){
     if(!srt.length)t+='<tr><td colspan="19" style="text-align:center">No members yet.</td></tr>';
     t+='<tr class="t"><td></td><td class="n">TOTAL</td>'+tot.map(function(v,k){return '<td>'+((k===10||k===11)?'':Number(v).toLocaleString())+'</td>'}).join("")+'</tr></table></div>';
     h+=t});
-  return h+'<b>Month-wise total</b><br><br>'+w;
+  return '<div class="pa">'+h+'<b>Month-wise total</b><br><br>'+w+'</div><button class="mb" id="xprint">Print</button><button class="mb" id="xdl">Download</button>';
 }
 function dvFormView(){
   var m=members.find(function(x){return x.id===detId});
@@ -335,7 +406,7 @@ function dvFormView(){
   return back+'<div class="card"><h2 style="text-align:center">'+esc(m.name)+'</h2><div class="fl">Financial year</div><select id="dvy" class="sel">'+fo+'</select>'+
    '<div style="display:flex;justify-content:flex-end;gap:10px;margin:4px 0 12px"><button class="g" id="dvcancel">Cancel</button><button id="dvsave2">Save</button></div>'+
    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'+
-   F2("f_otf","Opening of Thrift Fund",o1)+F2("f_ogf","Opening of Guaranty Fund",o2)+F2("f_cs","Closing Share",d.cs||0)+'</div>'+
+   F2("f_otf","Opening of Thrift Fund",o1)+F2("f_ogf","Opening of Guaranty Fund",o2)+'</div>'+
    '<div class="note">The interest rates and the circulating share value are set in the Ledger tab.</div></div>';
 }
 function render(){
@@ -346,7 +417,7 @@ function render(){
     if(stage==="loading")g=gate("Group Fund",'<div class="sub">Loading…</div>');
     else if(stage==="nodb")g=gate("Group Fund",'<div class="sub">'+(GF.configured?'Cannot connect to the database. Check your internet connection, then tap Try again.':'Setup needed: open index.html and paste your Firebase settings.')+'</div>'+(lastErr?'<div class="note">Details: '+esc(lastErr)+'</div>':'')+'<br><button id="retry">Try again</button>');
     else if(stage==="lock")g=gate("Group Fund",'<div class="sub">Unlock with your fingerprint or face.</div><br><button id="unlock">Unlock</button><button class="g" id="lout">Use another account</button>');
-    else if(stage==="choose")g=gate("Welcome",'<div class="sub">Choose how you would like to log in.</div><br><button class="b3d gold" id="lm">Member login</button><button class="b3d navy" id="la">Administrative login</button><button class="g" id="ginst">Install app</button>');
+    else if(stage==="choose")g=gate("Welcome",'<div class="sub">Choose how you would like to log in.</div><br><button class="b3d gold" id="lm">Member login</button><button class="b3d navy" id="la">Administrative login</button>'+(bioGet().member&&bioGet().member.sec?'<button class="b3d" id="bioin">Login with biometric</button>':'')+'<button class="g" id="ginst">Install app</button>');
     else if(stage==="mlogin")g=gate("Member login",'<div class="fl">Society code</div><input class="pw" id="sc1" type="password" placeholder="Society code" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" value="'+esc(keep.code)+'"><div class="fl">Choose your name</div><select id="ms"><option value="">Choose your name</option>'+dirList.slice().sort(function(a,b){return (a.name||"").localeCompare(b.name||"")}).map(function(m){return '<option value="'+m.id+'"'+(keep.mid===m.id?' selected':'')+'>'+esc((m.name||"").toUpperCase())+'</option>'}).join("")+'</select><div class="fl">Password</div><input class="pw" id="mpn" type="password" placeholder="Password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"><button class="g" id="shw">Show / hide</button><button class="b3d gold" id="mgo">Login</button><button class="g" id="bk">Back</button>');
     else if(stage==="alogin")g=gate("Administrative login",'<div class="fl">Society code</div><input class="pw" id="sc2" type="password" placeholder="Society code" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" value="'+esc(keep.code)+'"><div class="fl">Password</div><input class="pw" id="ap" type="password" placeholder="Password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"><div class="fl">User ID</div><input id="au" placeholder="User ID" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" value="'+esc(keep.user)+'"><button class="g" id="shw">Show / hide</button><button class="b3d navy" id="ago">Login</button><button class="g" id="bk">Back</button>');
     $("note").textContent="";$("app").innerHTML=g;bindGate();return;
@@ -355,14 +426,14 @@ function render(){
   var on=TABON[tab]||tab;
   TABS.forEach(function(x){
     var b=document.createElement("button");b.textContent=x[1];b.className=on===x[0]?"on":"";
-    b.onclick=function(){tab=x[0];render()};t.appendChild(b)});
+    b.onclick=function(){tab=x[0];editMode=false;render()};t.appendChild(b)});
   $("note").textContent="";
   var h;
-  if(tab==="home")h=home();else if(tab==="mem")h=memView();else if(tab==="det")h=detailsView();else if(tab==="led")h=ledView();else if(tab==="apps")h=appsView();else if(tab==="ltl")h=ltlView();else if(tab==="disb")h=dispView();else if(tab==="sheet")h=sheetView();else if(tab==="dvform")h=dvFormView();else if(tab==="addadm")h=addAdmView();else if(tab==="chgadm")h=chgAdmView();else h=home();
+  if(tab==="home")h=home();else if(tab==="mem")h=memView();else if(tab==="det")h=detailsView();else if(tab==="led")h=ledView();else if(tab==="apps")h=appsView();else if(tab==="ltl")h=ltlView();else if(tab==="disb")h=dispView();else if(tab==="sheet")h=sheetView();else if(tab==="msheet")h=msheetView();else if(tab==="dvform")h=dvFormView();else if(tab==="addadm")h=addAdmView();else if(tab==="chgadm")h=chgAdmView();else h=home();
   $("app").innerHTML=h+'<button class="mb b-peach" id="abk">← Back</button>';
-  bind();
+  bind();applyLock();
 }
-function topRow(){return '<div class="row" style="border:0;flex-wrap:wrap"><h1 style="margin:0">Group Fund</h1><div><button class="g" id="xl">Open Excel sheet</button> <button class="g" id="lo">Log out</button></div></div>'}
+function topRow(){return '<div class="row" style="border:0;flex-wrap:wrap"><h1 style="margin:0">Group Fund</h1><div><button class="g" id="edtog">'+(editMode?"Done":"Edit")+'</button> <button class="g" id="xl">Open Excel sheet</button> <button class="g" id="lo">Log out</button></div></div>'+(editMode?'':'<div class="note">Locked. Tap Edit to change the data.</div>')}
 function monthPicker(){return topRow()+'<input type="month" id="mon" value="'+month+'">'}
 function totalIn(){var ms=allMonths(),g=0;members.forEach(function(m){ms.forEach(function(mo){g+=rowCalc(m,mo)[16]})});return g}
 function totalOut(){return disb.reduce(function(a,x){return a+(+x.instalment||0)},0)}
@@ -379,28 +450,28 @@ function home(){
 function F(id,l,v,t){return '<div class="fl">'+l+'</div><input id="'+id+'" '+(t==="t"?'':'type="number" inputmode="decimal" step="any" ')+'value="'+esc(blank(v))+'">'}
 function editCard(){
   var m=members.find(function(x){return x.id===editId});if(!m)return"";
-  return '<div class="card"><b>Edit member</b>'+F("e_name","Name",m.name,"t")+'<button id="esave">Save</button><button class="g" id="erst">Reset password to default</button><button class="g" id="ecan">Cancel</button></div>';
+  return '<div class="card"><b>Edit member</b>'+F("e_name","Name",m.name,"t")+F("e_reg","Registration Number",m.regNo,"t")+F("e_nom","Nominee",m.nominee,"t")+'<div class="fl">Relation</div><select id="e_rel">'+relOpts(m.relation)+'</select>'+'<button id="esave">Save</button><button class="g" id="erst">Reset password to default</button><button class="g" id="ecan">Cancel</button></div>';
 }
 function memView(){
   var h=topRow()+(editId?editCard():"");
-  h+='<div class="card"><b>Add member</b><div class="note">New members get the default password. They can change it after they log in.</div><input id="mn" placeholder="Name of the member" autocapitalize="characters"><button id="madd">Add member</button></div><div class="card">';
+  h+='<div class="card"><b>Add member</b><div class="note">New members get the default password. They can change it after they log in.</div><input id="mn" placeholder="Name of the member" autocapitalize="characters"><input id="mr" placeholder="Registration Number"><input id="mnm" placeholder="Nominee"><select id="mrel">'+relOpts("")+'</select><button id="madd">Add member</button></div><div class="card">';
   if(!members.length)h+='<div class="sub">No members yet.</div>';
   members.slice().sort(function(a,b){return a.name.localeCompare(b.name)}).forEach(function(m){
-    h+='<div class="row"><span>'+esc(m.name)+'</span><div><button class="g" data-ed="'+m.id+'">Edit</button> <button class="g" data-dm="'+m.id+'">✕</button></div></div>'});
+    h+='<div class="row"><span><b>'+esc(m.name)+'</b><div class="sub">Reg. No. '+esc(m.regNo||"-")+' · Nominee: '+esc(m.nominee||"-")+' ('+esc(m.relation||"-")+')</div></span><div><button class="g" data-ed="'+m.id+'">Edit</button> <button class="g" data-dm="'+m.id+'">✕</button></div></div>'});
   return h+'</div>';
 }
 function ledView(){
   function R(id,l,v){return '<label class="tile"><span class="k">'+l+'</span><input class="ti" id="'+id+'" type="number" inputmode="decimal" step="any" value="'+esc(blank(v))+'"></label>'}
   function RO(l,v){return '<div class="tile"><span class="k">'+l+'</span><span class="tv">'+v+'</span></div>'}
   return topRow()+'<div class="card"><h2>Dividend settings</h2><div class="sub">These values are shown to every member under the Dividend button.</div></div><div class="tgrid">'+
-   R("l_tf","Interest rate on TF dividend (%)",divRates.tf)+R("l_gf","Interest rate on GF dividend (%)",divRates.gf)+R("l_cv","Circulating share value",divRates.cv)+RO("Total share of all members",divRates.ts)+'</div><br><button class="mb b-gold" id="lsave">Save</button>';
+   R("l_tf","Interest rate on TF dividend (%)",divRates.tf)+R("l_gf","Interest rate on GF dividend (%)",divRates.gf)+R("l_cv","Circulating share value",divRates.cv)+R("l_dv","Dividend",divRates.dv)+RO("Total share of all members",divRates.ts)+'</div><br><button class="mb b-gold" id="lsave">Save</button>';
 }
 function appsView(){
   var h=topRow()+'<div class="card"><b>Applications</b>';
   if(!apps.length)h+='<div class="sub">No applications yet.</div>';
   apps.slice().sort(function(a,b){return (b.date||"").localeCompare(a.date||"")}).forEach(function(x){
     h+='<div class="row"><div><div>'+esc(x.memberName)+' · '+fmt(x.amount)+' · '+esc(x.months)+' mo</div><div class="sub">'+esc(x.date)+' · '+esc(x.type||"LTL")+' · '+esc(x.purpose)+' · '+esc(x.status)+'</div></div><div>'+(x.status==="Pending"?'<button class="g ok" data-ap="'+x.id+'">Approve</button> <button class="g no" data-rj="'+x.id+'">Reject</button>':'')+'</div></div>'});
-  return h+'</div><button class="mb" id="gltl">LTL List</button><div class="card"><b>Rules and Regulations (shown to members)</b><br><br><textarea id="rt">'+esc(rulesText)+'</textarea><button id="rsave">Save rules</button></div>';
+  return h+'</div><button class="mb" id="gltl">LTL List</button><button class="mb" id="gms">Members Excel Sheet</button><div class="card"><b>Rules and Regulations (shown to members)</b><br><br><textarea id="rt">'+esc(rulesText)+'</textarea><button id="rsave">Save rules</button></div>';
 }
 function ltlView(){
   var h=topRow()+'<div class="card"><h2>LTL List</h2><div class="sub">Members who applied for LTL. A name is added automatically when you approve an LTL application. You can also write a name yourself.</div><br><input id="ltn" placeholder="Name of the member"><button id="ltadd">Add name</button></div><div class="card">';
@@ -464,11 +535,11 @@ function dividendView(m,back){
   var fo="";for(var y=fy-2;y<=fy+2;y++)fo+='<option value="'+y+'"'+(y===fy?' selected':'')+'>'+y+' – '+(y+1)+'</option>';
   var oi=function(j){return Math.round(open0[j]*K[j][2]/100)};
   var totTF=oi(0)+int[0],totGF=oi(1)+int[1];
-  var cs=+d0.cs||0,ts=divRates.ts,shareDiv=ts>0?Math.round(cs/ts*divRates.cv):0,grand=totTF+totGF+shareDiv;
+  var cs=clo[2],ts=divRates.ts,shareDiv=ts>0?Math.round(cs/ts*divRates.cv):0,divVal=ts>0?Math.round(cs/ts*divRates.dv):0,grand=totTF+totGF+shareDiv;
   var sm='<div class="card" style="background:var(--tint)"><h2 style="font-size:23px">Interest Summary</h2>'+
    '<div>Interest on Opening Balance (TF): '+oi(0)+'</div><div>Interest on Opening Balance (GF): '+oi(1)+'</div>'+
    '<div style="font-weight:700;margin-top:6px">Total Interest on TF: '+totTF+'</div><div style="font-weight:700">Total Interest on GF: '+totGF+'</div>'+
-   '<div style="font-weight:700;margin-top:14px">Share Dividend: '+shareDiv+'</div>'+
+   '<div style="font-weight:700;margin-top:14px">Share Dividend: '+shareDiv+'</div>'+'<div style="font-weight:700">Dividend Value: '+divVal+'</div>'+
    '<div class="totdiv">Total Dividend: '+grand.toLocaleString()+'</div></div>';
   var B=function(l,v){return '<div><div class="fl">'+l+'</div><div class="pill" style="text-align:left;min-height:34px">'+blank(v)+'</div></div>'};
   var info='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">'+B("Opening of Thrift Fund",open0[0])+B("Rate of Interest (TF %)",rTF)+B("Opening of Guaranty Fund",open0[1])+B("Rate of Interest (GF %)",rGF)+B("Closing Share",cs)+B("Circulating Share Value",divRates.cv)+'</div>';
@@ -489,7 +560,7 @@ if(mview==="sheet"){
     for(var t=st;t<=end;t=nextMon(t)){var r=rowCalc(m,t);fl.forEach(function(k){tot[k]+=r[k]});
       tb+='<tr><td class="n">'+MN[+t.slice(5,7)-1]+" "+t.slice(0,4)+'</td>'+r.map(function(v,k){return '<td'+(k===16?' class="tt"':'')+'>'+(k===10||k===11?v:Number(v).toLocaleString())+'</td>'}).join("")+'</tr>'}
     tb+='<tr class="t"><td class="n">TOTAL</td>'+tot.map(function(v,k){return '<td>'+(fl.indexOf(k)>=0?Number(v).toLocaleString():'')+'</td>'}).join("")+'</tr></table></div>';
-    return bar+'<div class="card"><h2>Excel sheet</h2><div><b>'+esc(m.name)+'</b></div><div class="note">April '+st.slice(0,4)+' to '+MN[+end.slice(5,7)-1]+' '+end.slice(0,4)+'. Scroll sideways to see all columns.</div>'+tb+back+'</div>'}
+    return bar+'<div class="card pa"><h2>Excel sheet</h2><div><b>'+esc(m.name)+'</b></div><div class="note">April '+st.slice(0,4)+' to '+MN[+end.slice(5,7)-1]+' '+end.slice(0,4)+'. Scroll sideways to see all columns.</div>'+tb+'</div><button class="mb" id="xprint">Print</button><button class="mb" id="xdl">Download</button>'+back}
   if(mview==="dividend")return bar+dividendView(m,back);
   if(mview==="rules")return bar+'<div class="card"><h2>Rules and Regulations</h2><div style="white-space:pre-wrap">'+(rulesText?esc(rulesText):'<span class="sub">Rules have not been published yet.</span>')+'</div><br>'+back+'</div>';
   
@@ -516,7 +587,7 @@ function bindMember(){
   go("bapp",function(){mview="apply";render()});go("blist",function(){mview="list";render()});
   go("bdiv",function(){dvFy=selFy||fyOf(month);mview="dividend";render();window.scrollTo(0,0)});
   go("bcp",function(){mview="chpw";render()});
-  go("inst",doInstall);go("shw2",togglePw);
+  go("inst",doInstall);go("shw2",togglePw);go("xprint",doPrint);go("xdl",function(){doDownload("NHSECCS-"+m0name().replace(/\s+/g,"-"))});
   var dfy=$("dfy");if(dfy)dfy.onchange=function(){dvFy=+dfy.value;render()};
   var fy=$("fy");if(fy)fy.onchange=function(){selFy=+fy.value;selMo=+$("fm").value;render()};
   go("chg",function(){selMo=+$("fm").value;month=(selMo>=4?selFy:selFy+1)+"-"+String(selMo).padStart(2,"0");render()});
@@ -531,7 +602,7 @@ function bindMember(){
     if(n1!==n2){toast("The two new passwords do not match.");return}
     if(!pwOk(n1)){toast(PWMSG,false,6000);return}
     if(n1===c){toast("The new password must be different from the current password.");return}
-    try{await GF.changePassword(GF.auth.currentUser.email,c,n1);forceChg=false;mview="home";render();toast("Password changed.",true)}
+    try{await GF.changePassword(GF.auth.currentUser.email,c,n1);var bb=bioGet();if(bb.member&&bb.member.memberId===meId){try{bb.member.sec=await encSecret(n1);bioSet(bb)}catch(x){}}forceChg=false;mview="home";render();toast("Password changed.",true)}
     catch(e){toast((e&&(e.code==="auth/invalid-credential"||e.code==="auth/wrong-password"||e.code==="auth/invalid-login-credentials"))?"Current password is incorrect.":"Could not change the password. "+((e&&e.code)||""),false,6000)}});
   go("bbio",function(){var b=bioGet();
     if(b.member&&b.member.memberId===meId){delete b.member;bioSet(b);try{GF.persist(false)}catch(e){}toast("Biometric turned off.",true);render();return}
@@ -539,13 +610,17 @@ function bindMember(){
   go("bpgo",async function(){var pw=$("bp").value;if(!pw){toast("Enter your password.");return}
     var email=GF.auth.currentUser.email;
     try{await GF.verify(email,pw+"#gf")}catch(e){toast("Incorrect password.");return}
-    try{await GF.persist(true);await GF.signIn(email,pw);var cid=await bioEnroll(m0name());var b=bioGet();b.member={cid:cid,memberId:meId};bioSet(b);mview="home";render();toast("Biometric enabled on this phone.",true)}
-    catch(e){try{await GF.persist(false)}catch(x){}toast(BIOFAIL,false,7000)}});
+    try{var cid=await bioEnroll(m0name()),sec=await encSecret(pw);var b=bioGet();b.member={cid:cid,memberId:meId,email:email,sec:sec};bioSet(b);mview="home";render();toast("Biometric enabled. Next time tap Login with biometric on the first page.",true,6000)}
+    catch(e){toast(BIOFAIL,false,7000)}});
 }
 function bindGate(){
   var q=$,go=function(id,fn){var e=q(id);if(e)e.onclick=fn};
   go("bk",function(){stage="choose";err="";render()});
   go("ginst",doInstall);go("retry",function(){location.reload()});
+  go("bioin",async function(){var b=bioGet().member;
+    try{await bioCheck(b.cid)}catch(e){err="Biometric check failed or was cancelled.";render();return}
+    try{var pw=await decSecret(b.sec);await GF.signIn(b.email,pw);meId=b.memberId;enter(false);err=""}
+    catch(e){err="The saved password no longer works. Log in with your password and enable biometric again.";var x=bioGet();delete x.member;bioSet(x)}render()});
   go("lm",function(){stage="mlogin";err="";render()});
   go("la",function(){stage="alogin";err="";render()});
   go("shw",togglePw);
@@ -567,10 +642,10 @@ function bindGate(){
   go("lout",function(){doLogout()});
 }
 function toList(s){return s.docs.map(function(d){var o=Object.assign({},d.data());o.id=d.id;return o})}
-function writeRules(p){var o={text:rulesText,tfRate:divRates.tf,gfRate:divRates.gf,cvValue:divRates.cv,totalShare:divRates.ts};for(var k in p)o[k]=p[k];return db.doc("config/rules").set(o)}
+function writeRules(p){var o={text:rulesText,tfRate:divRates.tf,gfRate:divRates.gf,cvValue:divRates.cv,dividendValue:divRates.dv,totalShare:divRates.ts};for(var k in p)o[k]=p[k];return db.doc("config/rules").set(o)}
 function syncShare(){
   if(!isAdmin||!canWrite||!rulesLoaded)return;
-  var fy=fyOf(now0()),tot=0;members.forEach(function(m){var d=m["dv"+fy]||m.dvLast||{};tot+=+d.cs||0});
+  var mon=now0(),tot=0;members.forEach(function(m){tot+=shareClose(m,mon)});
   if(tot!==divRates.ts)writeRules({totalShare:tot}).catch(function(){})}
 function bind(){
   var go=function(id,fn){var e=$(id);if(e)e.onclick=fn};
@@ -582,12 +657,12 @@ function bind(){
   go("gadd",function(){tab="addadm";render();window.scrollTo(0,0)});
   go("gchg",function(){tab="chgadm";render();window.scrollTo(0,0)});
   /* members */
-  go("madd",async function(){var n=$("mn").value.trim();
+  go("madd",async function(){var n=$("mn").value.trim(),rg=$("mr").value.trim(),nmn=$("mnm").value.trim(),rl=$("mrel").value;
     if(!n){toast("Enter the name of the member.");return}
     if(members.length>=50){toast("The society is limited to 50 members.");return}
     var id=uid(),em=id+"@member.groupfund.app";
     try{var au=await GF.createUser(em,DEFAULT_PW);
-      await save("members",id,{name:n.toUpperCase(),authUid:au,email:em});
+      await save("members",id,{name:n.toUpperCase(),regNo:rg,nominee:nmn,relation:rl,authUid:au,email:em});
       await save("directory",id,{name:n.toUpperCase(),email:em});
       toast("Member added with the default password.",true)}catch(e){toast("Could not add member: "+(e&&e.message||e))}});
   document.querySelectorAll("[data-ed]").forEach(function(b){b.onclick=function(){editId=b.dataset.ed;render();window.scrollTo(0,0)}});
@@ -595,7 +670,7 @@ function bind(){
   go("ecan",function(){editId=null;render()});
   go("esave",async function(){var id=editId,m=members.find(function(x){return x.id===id}),nm=$("e_name").value.trim().toUpperCase();
     if(!m)return;if(!nm){toast("Name is required.");return}
-    try{var o=Object.assign({},m);delete o.id;o.name=nm;await save("members",id,o);await db.collection("directory").doc(id).set({name:nm,email:o.email});editId=null;render();toast("Saved.",true)}
+    try{var o=Object.assign({},m);delete o.id;o.name=nm;o.regNo=$("e_reg").value.trim();o.nominee=$("e_nom").value.trim();o.relation=$("e_rel").value;await save("members",id,o);await db.collection("directory").doc(id).set({name:nm,email:o.email});editId=null;render();toast("Saved.",true)}
     catch(e){toast("Could not save: "+(e&&e.message||e))}});
   go("erst",async function(){var id=editId,m=members.find(function(x){return x.id===id});if(!m)return;
     try{var ne=id+"."+Date.now().toString(36)+"@member.groupfund.app",au=await GF.createUser(ne,DEFAULT_PW);
@@ -607,7 +682,7 @@ function bind(){
     catch(e){toast("Could not reset: "+(e&&e.message||e))}});
   /* ledger */
   go("lsave",function(){var g=function(i){return parseFloat($(i).value)||0};
-    writeRules({tfRate:g("l_tf"),gfRate:g("l_gf"),cvValue:g("l_cv")}).then(function(){toast("Saved.",true)},function(){toast("Could not save.")})});
+    writeRules({tfRate:g("l_tf"),gfRate:g("l_gf"),cvValue:g("l_cv"),dividendValue:g("l_dv")}).then(function(){toast("Saved.",true)},function(){toast("Could not save.")})});
   /* applications and LTL list */
   document.querySelectorAll("[data-ap]").forEach(function(b){b.onclick=async function(){
     var a=apps.find(function(x){return x.id===b.dataset.ap});if(!a)return;
@@ -618,6 +693,11 @@ function bind(){
   document.querySelectorAll("[data-rj]").forEach(function(b){b.onclick=function(){db.collection("applications").doc(b.dataset.rj).update({status:"Rejected"}).then(function(){toast("Rejected.",true)},function(){toast("Could not save.")})}});
   go("rsave",function(){writeRules({text:$("rt").value}).then(function(){toast("Rules saved.",true)},function(){toast("Could not save.")})});
   go("gltl",function(){tab="ltl";render();window.scrollTo(0,0)});
+  go("gms",function(){tab="msheet";render();window.scrollTo(0,0)});
+  var msel=$("msel");if(msel)msel.onchange=function(){msSel=msel.value;render()};
+  var msfy=$("msfy");if(msfy)msfy.onchange=function(){msFy=+msfy.value;render()};
+  go("xprint",doPrint);go("xdl",function(){doDownload(tab==="msheet"?"NHSECCS-"+((members.find(function(x){return x.id===msSel})||{}).name||"member").replace(/\s+/g,"-"):"NHSECCS-Excel-sheet")});
+  go("edtog",function(){editMode=!editMode;render()});
   go("ltadd",async function(){var n=$("ltn").value.trim();if(!n){toast("Write the name of the member.");return}
     try{await db.collection("ltl").doc(uid()).set({name:n.toUpperCase(),date:new Date().toISOString().slice(0,10),auto:false});toast("Name added.",true)}catch(e){toast("Could not save.")}});
   document.querySelectorAll("[data-ld]").forEach(function(b){b.onclick=function(){del("ltl",b.dataset.ld)}});
@@ -647,7 +727,7 @@ function bind(){
   go("dvsave2",async function(){
     var g=function(i){return parseFloat($(i).value)||0},id=detId,m=members.find(function(x){return x.id===id}),fy=dvAdmFy;
     var f1={v:g("f_otf"),e:parseFloat($("f_otf").dataset.e)||0},f2={v:g("f_ogf"),e:parseFloat($("f_ogf").dataset.e)||0};
-    var dv={cs:g("f_cs")};
+    var dv={};
     var mon2=fy+"-04",doc=Object.assign({},docsOf(id)[mon2]||{});delete doc.id;doc.memberId=id;doc.month=mon2;doc.ownerUid=m.authUid;
     if(f1.v!==f1.e||doc.openTF!==undefined)doc.openTF=f1.v;if(f2.v!==f2.e||doc.openGF!==undefined)doc.openGF=f2.v;
     var o=Object.assign({},m);delete o.id;o["dv"+fy]=dv;o.dvLast=dv;
@@ -667,9 +747,8 @@ function bind(){
     try{
       await db.collection("disb").doc(uid()).set({memberId:id,memberName:m.name,month:mon2,type:type,sanctioned:san,instalment:ins,stage:stage2,gfPct:gfp,gfValue:gfv,gfDate:today,checkNo:chk});
       var doc=Object.assign({},docsOf(id)[mon2]||{});delete doc.id;doc.memberId=id;doc.month=mon2;doc.ownerUid=m.authUid;
-      if(isL){doc.ltlPrin=ins;if(stage2==="1st installment"&&san>0)doc.ltl=san}else{doc.stlPrin=ins;if(stage2==="1st installment"&&san>0)doc.stl=san}
+      var kk=isL?"ltl":"stl",pk=isL?"ltlPrin":"stlPrin";doc[kk]=effBal(m,mon2,kk,pk)+ins;
       await db.collection("monthly").doc(id+"_"+mon2).set(doc);
-      if(stage2==="Complete"){var nx=nextMon(mon2),d2=Object.assign({},docsOf(id)[nx]||{});delete d2.id;d2.memberId=id;d2.month=nx;d2.ownerUid=m.authUid;if(isL)d2.ltlPrin=0;else d2.stlPrin=0;await db.collection("monthly").doc(id+"_"+nx).set(d2)}
       toast("Saved. The instalment is added to "+(isL?"LTL":"STL")+" this month.",true,5000)}
     catch(e){toast("Could not save: "+(e&&e.message||e))}});
   /* administrators */
@@ -702,9 +781,9 @@ function startData(role){
   var er=function(){toast("Cannot read data. Check the Firestore rules.")};
   var live=function(){return stage==="admin"||stage==="member"};
   unsubs.push(GF.watch("members","authUid",role,function(q){members=toList(q).map(function(m){m.name=(m.name||"").toUpperCase();return m});if(role==="member"&&!meId&&members[0])meId=members[0].id;if(role==="admin")syncShare();if(live())render()},er));
-  unsubs.push(GF.watch("monthly","ownerUid",role,function(q){monthly=toList(q);if(live())render()},er));
+  unsubs.push(GF.watch("monthly","ownerUid",role,function(q){monthly=toList(q);if(role==="admin")syncShare();if(live())render()},er));
   unsubs.push(GF.watch("applications","ownerUid",role,function(q){apps=toList(q);if(live())render()},er));
-  unsubs.push(GF.watchDoc("config","rules",function(d){var x=d.exists()?d.data():{};rulesText=x.text||"";divRates={tf:+x.tfRate||0,gf:+x.gfRate||0,sh:0,cv:+x.cvValue||0,ts:+x.totalShare||0};rulesLoaded=true;if(role==="admin")syncShare();if(live())render()},function(){}));
+  unsubs.push(GF.watchDoc("config","rules",function(d){var x=d.exists()?d.data():{};rulesText=x.text||"";divRates={tf:+x.tfRate||0,gf:+x.gfRate||0,sh:0,cv:+x.cvValue||0,ts:+x.totalShare||0,dv:+x.dividendValue||0};rulesLoaded=true;if(role==="admin")syncShare();if(live())render()},function(){}));
   if(role==="admin"){
     unsubs.push(GF.watch("disb",null,"admin",function(q){disb=toList(q);if(live())render()},er));
     unsubs.push(GF.watch("ltl",null,"admin",function(q){ltlList=toList(q);if(live())render()},er));
@@ -720,8 +799,7 @@ function doLogout(){
 function boot(){
   if(!authChecked||stage!=="loading")return;
   var b=bioGet();
-  if(sessionUser&&sessionUser.email!==GF.admin&&b.member&&b.member.cid&&sessionUser.email&&sessionUser.email.indexOf("@member.groupfund.app")>0)stage="lock";
-  else{if(sessionUser){try{GF.signOut()}catch(e){}sessionUser=null}stage="choose"}
+  {if(sessionUser){try{GF.signOut()}catch(e){}sessionUser=null}stage="choose"}
   render()}
 (function(){
   if(!GF.configured){stage="nodb";render();return}
@@ -754,7 +832,7 @@ const ADMIN_EMAIL="kunalnandi56@gmail.com";
 const configured=!/PASTE/.test(JSON.stringify(FIREBASE_CONFIG));
 let app,auth,F,_sec;
 const useLocal=(function(){try{const b=JSON.parse(localStorage.getItem("gf_bio")||"{}");return !!(b&&b.member)}catch(e){return false}})();
-if(configured){app=initializeApp(FIREBASE_CONFIG);auth=initializeAuth(app,{persistence:useLocal?browserLocalPersistence:inMemoryPersistence});F=getFirestore(app)}
+if(configured){app=initializeApp(FIREBASE_CONFIG);auth=initializeAuth(app,{persistence:inMemoryPersistence});F=getFirestore(app)}
 const clean=o=>JSON.parse(JSON.stringify(o));
 function getSec(){if(!_sec)_sec=getAuth(initializeApp(FIREBASE_CONFIG,"secondary"));return _sec}
 window.GF={
@@ -786,4 +864,3 @@ window.dispatchEvent(new Event("gf-ready"));
 </script>
 </body>
 </html>
-
