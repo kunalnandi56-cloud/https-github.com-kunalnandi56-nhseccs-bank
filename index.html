@@ -178,12 +178,7 @@ button.mb{margin-bottom:12px}
 .xt td .pill{min-width:70px;min-height:32px}
 
 /* ===== v3: brighter look, print, locked fields ===== */
-html:root{--bg:#F6F9FD;--card:#FFFFFF;--tx:#0F1B2A;--mut:#566A80;--bd:#D3DDE9;--hi:#0E2A47;--field:#FFFFFF;--tint:rgba(14,42,71,.04);--ok:#0F7B5F;--bad:#A32638;--shadow:0 1px 0 rgba(255,255,255,.9) inset,0 14px 30px -22px rgba(14,42,71,.35);color-scheme:light}
-.hd{background:var(--pat),linear-gradient(135deg,#0F3A66 0%,#1C5A96 55%,#14477A 100%);background-size:120px auto,auto}
-body.gate{background:var(--pat),radial-gradient(120% 80% at 50% 0%,#2C74B8 0%,#17518A 55%,#0F3F6E 100%);background-size:120px auto,auto;background-attachment:fixed}
-.grid>.card:first-child,.tile.full{background:var(--pat),linear-gradient(135deg,#17508A,#2F78BC);background-size:120px auto,auto}
-.xt th{background:linear-gradient(180deg,#2A6DB0,#17508A)}
-body::after{opacity:.1}
+.lockbar{background:var(--card);border:1px solid #E0BF68;border-radius:10px;padding:10px 14px;margin:8px 0 12px;font-size:13px;color:var(--mut)}
 input:disabled,select:disabled,textarea:disabled{opacity:.72;background:var(--tint)}
 #bioin{--c1:#D3F1F3;--c2:#ADE2E7;--e:#62B0BA}
 #gms,#xdl{--c1:#E8E0F9;--c2:#D0C2F1;--e:#9585C7}
@@ -275,11 +270,13 @@ function now0(){return new Date().toISOString().slice(0,7)}
 function togglePw(){var els=document.querySelectorAll("input.pw");if(!els.length)return;var t=els[0].type==="password"?"text":"password";for(var k=0;k<els.length;k++)els[k].type=t}
 function admPw(email,pw){return email.indexOf("@admin.nhseccs.app")>0?pw+"#gf":pw}
 
+var LOCKTABS={det:1,led:1,apps:1,dvform:1};
+var FREEID=/^(mn|mr|mnm|mrel|ltn|db_.*|aa_.*|ca_.*)$/;
 var NAVIDS={mon:1,dsel:1,dbmon:1,dbm:1,dvy:1,xsel:1,msel:1,msfy:1};
 function applyLock(){
-  if(stage!=="admin")return;var lock=!editMode;
-  document.querySelectorAll("#app input,#app select,#app textarea").forEach(function(el){if(!NAVIDS[el.id])el.disabled=lock});
-  document.querySelectorAll("#madd,#esave,#erst,#lsave,#rsave,#ltadd,#dsave,#dvsave2,#dbsave,#aasave,#cachg,[data-ap],[data-rj],[data-dm],[data-ed],[data-ld]").forEach(function(b){b.disabled=lock})}
+  if(stage!=="admin"||!LOCKTABS[tab])return;var lock=!editMode;
+  document.querySelectorAll("#app input,#app select,#app textarea").forEach(function(el){if(!NAVIDS[el.id]&&!FREEID.test(el.id))el.disabled=lock});
+  document.querySelectorAll("#lsave,#rsave,#dsave,#dvsave2").forEach(function(b){b.disabled=lock})}
 var RELS=["Wife","Husband","Son","Daughter","Father","Mother","Brother","Sister","Other"];
 function relOpts(sel){return '<option value="">Relation</option>'+RELS.map(function(x){return '<option'+(x===sel?' selected':'')+'>'+x+'</option>'}).join("")}
 function shareClose(m,mon){return effBal(m,mon,"openShare","shareM",1)+effCarry(m,mon,"shareM")}
@@ -433,7 +430,7 @@ function render(){
   $("app").innerHTML=h+'<button class="mb b-peach" id="abk">← Back</button>';
   bind();applyLock();
 }
-function topRow(){return '<div class="row" style="border:0;flex-wrap:wrap"><h1 style="margin:0">Group Fund</h1><div><button class="g" id="edtog">'+(editMode?"Done":"Edit")+'</button> <button class="g" id="xl">Open Excel sheet</button> <button class="g" id="lo">Log out</button></div></div>'+(editMode?'':'<div class="note">Locked. Tap Edit to change the data.</div>')}
+function topRow(){return '<div class="row" style="border:0;flex-wrap:wrap"><h1 style="margin:0">Group Fund</h1><div>'+(LOCKTABS[tab]?'<button class="g" id="edtog">'+(editMode?"Done":"Edit")+'</button> ':'')+'<button class="g" id="xl">Open Excel sheet</button> <button class="g" id="lo">Log out</button></div></div>'+(editMode||!LOCKTABS[tab]?'':'<div class="lockbar">🔒 Saved data is locked. Tap <b>Edit</b> to change it, then tap <b>Save</b>.</div>')}
 function monthPicker(){return topRow()+'<input type="month" id="mon" value="'+month+'">'}
 function totalIn(){var ms=allMonths(),g=0;members.forEach(function(m){ms.forEach(function(mo){g+=rowCalc(m,mo)[16]})});return g}
 function totalOut(){return disb.reduce(function(a,x){return a+(+x.instalment||0)},0)}
