@@ -209,7 +209,7 @@ if("serviceWorker" in navigator&&location.protocol.indexOf("http")===0)window.ad
 window.__ie=null;window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();window.__ie=e});
 function gfStart(){
 (function(){
-var CUR="₹",dvAdmFy=0,dvFy=0,dbMon=new Date().toISOString().slice(0,7),dbMem="",divRates={tf:0,gf:0,sh:0,cv:0,ts:0,dv:0},keep={code:"",user:"",mid:""},dirList=[],sessionUser=null,unsubs=[],authChecked=false,members=[],monthly=[],apps=[],disb=[],ltlList=[],adminList=[],rulesLoaded=false,forceChg=false,tab="home",db=null,canWrite=false,stage="loading",mview="home",editId=null,detId=null,rulesText="",selFy=0,selMo=0,installEv=null,isAdmin=false,meId=null,err="",lastErr="",editMode=false,msSel="",msFy=0;
+var CUR="₹",dvAdmFy=0,dvFy=0,dbMon=new Date().toISOString().slice(0,7),dbMem="",divRates={tf:0,gf:0,sh:0,cv:0,ts:0,dv:0},keep={code:"",user:"",mid:""},dirList=[],sessionUser=null,unsubs=[],authChecked=false,members=[],monthly=[],apps=[],disb=[],ltlList=[],adminList=[],rulesLoaded=false,forceChg=false,tab="home",db=null,canWrite=false,stage="loading",mview="home",editId=null,detId=null,rulesText="",selFy=0,selMo=0,installEv=null,isAdmin=false,meId=null,err="",lastErr="",editMode=false,msSel="",msFy=0,dbEdit="";
 var month=new Date().toISOString().slice(0,7);
 var MN=["January","February","March","April","May","June","July","August","September","October","November","December"];
 function fyOf(mo){var y=+mo.slice(0,4),m=+mo.slice(5,7);return m>=4?y:y-1}
@@ -477,32 +477,48 @@ function ltlView(){
     h+='<div class="row"><span>'+(i+1)+'. '+esc(x.name)+(x.auto?' <span class="sub">(approved)</span>':'')+'</span><button class="g no" data-ld="'+x.id+'">✕</button></div>'});
   return h+'</div>';
 }
+async function applyDisbChanges(list){
+  var by={};
+  list.forEach(function(c){var k=c.memberId+"_"+c.month;(by[k]=by[k]||{memberId:c.memberId,month:c.month,d:{ltl:0,stl:0}}).d[c.type==="LTL"?"ltl":"stl"]+=c.delta});
+  var keys=Object.keys(by).sort(function(a,b){return by[a].month<by[b].month?-1:by[a].month>by[b].month?1:0});
+  for(var n=0;n<keys.length;n++){
+    var k=keys[n],c=by[k];if(!c.d.ltl&&!c.d.stl)continue;
+    var m=members.find(function(x){return x.id===c.memberId});if(!m)continue;
+    var doc=Object.assign({},docsOf(c.memberId)[c.month]||{});delete doc.id;doc.memberId=c.memberId;doc.month=c.month;doc.ownerUid=m.authUid;
+    ["ltl","stl"].forEach(function(kk){if(c.d[kk]){var pk=kk==="ltl"?"ltlPrin":"stlPrin";doc[kk]=effBal(m,c.month,kk,pk)+c.d[kk]}});
+    await db.collection("monthly").doc(k).set(doc);
+    var local=Object.assign({},doc,{id:k}),ix=monthly.findIndex(function(x){return x.id===k});
+    if(ix>=0)monthly[ix]=local;else monthly.push(local)}}
 function dispView(){
   var srt=members.slice().sort(function(a,b){return a.name.localeCompare(b.name)});
   var h=topRow();
   if(!srt.length)return h+'<div class="card"><div class="sub">Add members first.</div></div>';
+  var e=dbEdit?disb.find(function(x){return x.id===dbEdit}):null;
+  if(!e)dbEdit="";
   if(!dbMem||!members.find(function(x){return x.id===dbMem}))dbMem=srt[0].id;
   var today=new Date().toISOString().slice(0,10);
   var rows=disb.filter(function(x){return x.month===dbMon}).sort(function(a,b){return (a.memberName||"").localeCompare(b.memberName||"")});
   var tdMon=rows.reduce(function(a,x){return a+(+x.instalment||0)},0);
-  h+='<div class="card"><b>Loan disbursement</b><div class="fl" style="margin-top:10px">Month and year</div><input type="month" id="dbmon" value="'+dbMon+'"><div class="fl">Name of the member</div><select id="dbm" class="sel">'+srt.map(function(x){return '<option value="'+x.id+'"'+(x.id===dbMem?' selected':'')+'>'+esc(x.name)+'</option>'}).join("")+'</select></div>';
+  var sel=function(arr,v){return arr.map(function(x){return '<option'+(x===v?' selected':'')+'>'+x+'</option>'}).join("")};
+  h+='<div class="card"><b>Loan disbursement</b>'+(e?'<div class="note" style="color:var(--bad);font-weight:600">Editing a saved record. Change the boxes below, then tap Update record.</div>':'')+'<div class="fl" style="margin-top:10px">Month and year</div><input type="month" id="dbmon" value="'+dbMon+'"><div class="fl">Name of the member</div><select id="dbm" class="sel">'+srt.map(function(x){return '<option value="'+x.id+'"'+(x.id===dbMem?' selected':'')+'>'+esc(x.name)+'</option>'}).join("")+'</select></div>';
   var HH=["Type of loan","Loan sanctioned","Instalment this month","Complete / instalment","GF %","GF value","GF date","Check number"];
   h+='<div class="xw"><table class="xt"><tr>'+HH.map(function(x){return '<th>'+x+'</th>'}).join("")+'</tr><tr>'+
-   '<td><select id="db_type">'+LOANS.map(function(x){return '<option>'+x+'</option>'}).join("")+'</select></td>'+
-   '<td><input id="db_san" type="number" inputmode="decimal" step="any"></td>'+
-   '<td><input id="db_ins" type="number" inputmode="decimal" step="any"></td>'+
-   '<td><select id="db_stage">'+STAGES.map(function(x){return '<option>'+x+'</option>'}).join("")+'</select></td>'+
-   '<td><input id="db_gfp" type="number" inputmode="decimal" step="any"></td>'+
-   '<td><span class="pill" id="db_gfv"></span></td><td><span class="pill">'+today+'</span></td>'+
-   '<td><input id="db_chk" placeholder="Check no."></td></tr></table></div>';
-  h+='<div style="display:flex;gap:10px"><button class="mb" id="dbsave" style="flex:1">Save</button><button class="mb b-peach" id="dbback" style="flex:1">Back</button></div>';
+   '<td><select id="db_type">'+sel(LOANS,e&&e.type)+'</select></td>'+
+   '<td><input id="db_san" type="number" inputmode="decimal" step="any" value="'+esc(blank(e&&e.sanctioned))+'"></td>'+
+   '<td><input id="db_ins" type="number" inputmode="decimal" step="any" value="'+esc(blank(e&&e.instalment))+'"></td>'+
+   '<td><select id="db_stage">'+sel(STAGES,e&&e.stage)+'</select></td>'+
+   '<td><input id="db_gfp" type="number" inputmode="decimal" step="any" value="'+esc(blank(e&&e.gfPct))+'"></td>'+
+   '<td><span class="pill" id="db_gfv">'+esc(blank(e&&e.gfValue))+'</span></td><td><span class="pill">'+(e?esc(e.gfDate):today)+'</span></td>'+
+   '<td><input id="db_chk" placeholder="Check no." value="'+esc(e?e.checkNo:"")+'"></td></tr></table></div>';
+  h+='<div style="display:flex;gap:10px"><button class="mb" id="dbsave" style="flex:1">'+(e?'Update record':'Save')+'</button>'+(e?'<button class="mb b-peach" id="dbcancel" style="flex:1">Cancel edit</button>':'<button class="mb b-peach" id="dbback" style="flex:1">Back</button>')+'</div>';
   h+='<div class="grid"><div class="sbtn s-out"><div class="k">Total disbursement</div><div class="sv">'+fmt(totalOut())+'</div></div><div class="sbtn s-in"><div class="k">Disbursement in this month</div><div class="sv">'+fmt(tdMon)+'</div></div></div>';
-  h+='<div class="xw"><table class="xt"><tr>'+["Name","Type of loan","Loan sanctioned","Instalment","Instalment stage","GF %","GF value","GF date","Check number"].map(function(x){return '<th>'+x+'</th>'}).join("")+'</tr>';
-  if(!rows.length)h+='<tr><td colspan="9" style="text-align:center">No disbursement saved for this month.</td></tr>';
-  rows.forEach(function(x){h+='<tr><td class="n">'+esc(x.memberName)+'</td><td>'+esc(x.type)+'</td><td>'+Number(x.sanctioned||0).toLocaleString()+'</td><td>'+Number(x.instalment||0).toLocaleString()+'</td><td>'+esc(x.stage)+'</td><td>'+esc(x.gfPct)+'</td><td>'+Number(x.gfValue||0).toLocaleString()+'</td><td>'+esc(x.gfDate)+'</td><td>'+esc(x.checkNo)+'</td></tr>'});
-  h+='<tr class="t"><td class="n">Total</td><td></td><td></td><td>'+tdMon.toLocaleString()+'</td><td></td><td></td><td></td><td></td><td></td></tr></table></div>';
+  h+='<div class="xw"><table class="xt"><tr>'+["Name","Type of loan","Loan sanctioned","Instalment","Instalment stage","GF %","GF value","GF date","Check number","Action"].map(function(x){return '<th>'+x+'</th>'}).join("")+'</tr>';
+  if(!rows.length)h+='<tr><td colspan="10" style="text-align:center">No disbursement saved for this month.</td></tr>';
+  rows.forEach(function(x){h+='<tr><td class="n">'+esc(x.memberName)+'</td><td>'+esc(x.type)+'</td><td>'+Number(x.sanctioned||0).toLocaleString()+'</td><td>'+Number(x.instalment||0).toLocaleString()+'</td><td>'+esc(x.stage)+'</td><td>'+esc(x.gfPct)+'</td><td>'+Number(x.gfValue||0).toLocaleString()+'</td><td>'+esc(x.gfDate)+'</td><td>'+esc(x.checkNo)+'</td><td style="white-space:nowrap"><button class="g" data-de="'+x.id+'">Edit</button> <button class="g no" data-dd="'+x.id+'">✕</button></td></tr>'});
+  h+='<tr class="t"><td class="n">Total</td><td></td><td></td><td>'+tdMon.toLocaleString()+'</td><td></td><td></td><td></td><td></td><td></td><td></td></tr></table></div>';
   return h;
 }
+
 function addAdmView(){
   return topRow()+'<div class="card"><h2>Add administrator</h2><div class="sub">You can add up to 3 administrators.</div><br><div class="fl">Society code</div><input class="pw" id="aa_code" type="password" autocomplete="off"><div class="fl">Name of the administrator</div><input id="aa_name" placeholder="Name"><div class="fl">Password</div><input class="pw" id="aa_pw" type="password" autocomplete="new-password"><div class="note">'+PWMSG+'</div><div class="fl">User ID (6 digits)</div><input id="aa_id" inputmode="numeric" maxlength="6" placeholder="6 digits"><button class="g" id="shw3">Show / hide</button><button class="mb b-gold" id="aasave">Add administrator</button></div>';
 }
@@ -732,7 +748,7 @@ function bind(){
     catch(e){toast("Could not save: "+(e&&e.message||e))}});
   /* loan disbursement */
   var dbm=$("dbm");if(dbm)dbm.onchange=function(){dbMem=dbm.value};
-  var dbmon=$("dbmon");if(dbmon)dbmon.onchange=function(){dbMon=dbmon.value||dbMon;render()};
+  var dbmon=$("dbmon");if(dbmon)dbmon.onchange=function(){if(dbEdit)return;dbMon=dbmon.value||dbMon;render()};
   if($("db_ins")){var upd2=function(){var g=function(i){return parseFloat($(i).value)||0};var v=Math.round(g("db_ins")*g("db_gfp")/100);$("db_gfv").textContent=v?v:""};
     ["db_ins","db_gfp"].forEach(function(i){$(i).oninput=upd2})}
   go("dbback",function(){tab="home";render()});
@@ -740,14 +756,24 @@ function bind(){
     var g=function(i){return parseFloat($(i).value)||0},id=$("dbm").value,m=members.find(function(x){return x.id===id}),mon2=$("dbmon").value||dbMon;
     var type=$("db_type").value,san=g("db_san"),ins=g("db_ins"),stage2=$("db_stage").value,gfp=g("db_gfp"),chk=$("db_chk").value.trim();
     if(!m||!(ins>0)){toast("Choose the member and enter the instalment amount.");return}
-    var gfv=Math.round(ins*gfp/100),today=new Date().toISOString().slice(0,10),isL=type==="LTL";
+    var gfv=Math.round(ins*gfp/100),old=dbEdit?disb.find(function(x){return x.id===dbEdit}):null,today=new Date().toISOString().slice(0,10);
+    var rec={memberId:id,memberName:m.name,month:mon2,type:type,sanctioned:san,instalment:ins,stage:stage2,gfPct:gfp,gfValue:gfv,gfDate:old?old.gfDate:today,checkNo:chk};
     try{
-      await db.collection("disb").doc(uid()).set({memberId:id,memberName:m.name,month:mon2,type:type,sanctioned:san,instalment:ins,stage:stage2,gfPct:gfp,gfValue:gfv,gfDate:today,checkNo:chk});
-      var doc=Object.assign({},docsOf(id)[mon2]||{});delete doc.id;doc.memberId=id;doc.month=mon2;doc.ownerUid=m.authUid;
-      var kk=isL?"ltl":"stl",pk=isL?"ltlPrin":"stlPrin";doc[kk]=effBal(m,mon2,kk,pk)+ins;
-      await db.collection("monthly").doc(id+"_"+mon2).set(doc);
-      toast("Saved. The instalment is added to "+(isL?"LTL":"STL")+" this month.",true,5000)}
+      await db.collection("disb").doc(old?old.id:uid()).set(rec);
+      var ch=[{memberId:id,month:mon2,type:type,delta:ins}];
+      if(old)ch.push({memberId:old.memberId,month:old.month,type:old.type,delta:-(+old.instalment||0)});
+      await applyDisbChanges(ch);
+      var was=!!old;dbEdit="";dbMon=mon2;
+      toast(was?"Record updated. LTL / STL of the month is corrected.":"Saved. The instalment is added to "+(type==="LTL"?"LTL":"STL")+" this month.",true,5000);render()}
     catch(e){toast("Could not save: "+(e&&e.message||e))}});
+  document.querySelectorAll("[data-de]").forEach(function(b){b.onclick=function(){var r=disb.find(function(x){return x.id===b.dataset.de});if(!r)return;dbEdit=r.id;dbMon=r.month;dbMem=r.memberId;render();window.scrollTo(0,0)}});
+  go("dbcancel",function(){dbEdit="";render()});
+  document.querySelectorAll("[data-dd]").forEach(function(b){b.onclick=async function(){
+    var id=b.dataset.dd,r=disb.find(function(x){return x.id===id});if(!r)return;
+    if(pend!=="disb"+id){pend="disb"+id;toast("Tap delete again to remove this record. Its instalment is taken back from LTL / STL.");setTimeout(function(){pend=null},4500);return}
+    pend=null;
+    try{await applyDisbChanges([{memberId:r.memberId,month:r.month,type:r.type,delta:-(+r.instalment||0)}]);await db.collection("disb").doc(id).delete();toast("Record deleted.",true)}
+    catch(e){toast("Could not delete.")}}});
   /* administrators */
   go("aasave",async function(){var code=$("aa_code").value,nm=$("aa_name").value.trim(),pw=$("aa_pw").value,id=$("aa_id").value.trim();
     if(!(await codeOk(code))){toast("Incorrect society code.");return}
@@ -861,3 +887,4 @@ window.dispatchEvent(new Event("gf-ready"));
 </script>
 </body>
 </html>
+
