@@ -350,7 +350,7 @@ function auditView(){
   var h=topRow()+'<div class="card"><h2>Activity log</h2><div class="sub">Every change made by an administrator. The newest 200 entries are shown. Entries cannot be edited or deleted.</div></div>';
   var rows=auditList.map(function(x){var d=new Date(x.t),when=isNaN(d)?esc(x.t):d.toLocaleString();return '<tr><td class="n">'+when+'</td><td>'+esc(x.by)+'</td><td>'+esc(x.action)+'</td><td style="white-space:normal;text-align:left">'+esc(x.detail)+'</td></tr>'}).join("");
   return h+'<div class="card pa"><div class="xw"><table class="xt"><tr><th>Date and time</th><th>Administrator</th><th>Action</th><th>Details</th></tr>'+(rows||'<tr><td colspan="4" style="text-align:center">No activity recorded yet.</td></tr>')+'</table></div></div><button class="mb" id="xprint">Print</button><button class="mb" id="xdl">Download</button>'}
-var APPVER="Version 8";
+var APPVER="Version 9";
 var LOANS=["LTL","STL (Medical)","STL (Other)"];
 var STAGES=["Complete","1st installment","2nd installment","3rd installment","4th installment","5th installment"];
 var TABS=[["home","Summary"],["mem","Members"],["det","Details"],["led","Ledger"],["apps","Apps"],["disb","Loan disbursement"]];
@@ -489,7 +489,7 @@ function memView(){
   if(!members.length)h+='<div class="sub">No members yet.</div>';
   members.slice().sort(function(a,b){return a.name.localeCompare(b.name)}).forEach(function(m){
     h+='<div class="row"><span><b>'+esc(m.name)+'</b><div class="sub">Reg. No. '+esc(m.regNo||"-")+' · Nominee: '+esc(m.nominee||"-")+' ('+esc(m.relation||"-")+')</div></span><div><button class="g" data-ed="'+m.id+'">Edit</button> <button class="g" data-dm="'+m.id+'">✕</button></div></div>'});
-  return h+'</div>';
+  return h+'</div><div class="note">If a member forgets the password: tap <b>Edit</b> on that member, then <b>Reset password (new password)</b>. A new password is shown once. Send it to the member, who must change it at the next login.</div>';
 }
 function ledView(){
   function R(id,l,v){return '<label class="tile"><span class="k">'+l+'</span><input class="ti" id="'+id+'" type="number" inputmode="decimal" step="any" value="'+esc(blank(v))+'"></label>'}
@@ -513,16 +513,22 @@ function ltlView(){
 }
 async function applyDisbChanges(list){
   var by={};
-  list.forEach(function(c){var k=c.memberId+"_"+c.month;(by[k]=by[k]||{memberId:c.memberId,month:c.month,d:{ltl:0,stl:0}}).d[c.type==="LTL"?"ltl":"stl"]+=c.delta});
+  list.forEach(function(c){var k=c.memberId+"_"+c.month;var o=(by[k]=by[k]||{memberId:c.memberId,month:c.month,d:{ltl:0,stl:0},gf:0});o.d[c.type==="LTL"?"ltl":"stl"]+=c.delta;o.gf+=(c.gf||0)});
   var keys=Object.keys(by).sort(function(a,b){return by[a].month<by[b].month?-1:by[a].month>by[b].month?1:0});
+  var put=async function(k,doc){await db.collection("monthly").doc(k).set(doc);var local=Object.assign({},doc,{id:k}),ix=monthly.findIndex(function(x){return x.id===k});if(ix>=0)monthly[ix]=local;else monthly.push(local)};
   for(var n=0;n<keys.length;n++){
-    var k=keys[n],c=by[k];if(!c.d.ltl&&!c.d.stl)continue;
+    var k=keys[n],c=by[k];if(!c.d.ltl&&!c.d.stl&&!c.gf)continue;
     var m=members.find(function(x){return x.id===c.memberId});if(!m)continue;
     var doc=Object.assign({},docsOf(c.memberId)[c.month]||{});delete doc.id;doc.memberId=c.memberId;doc.month=c.month;doc.ownerUid=m.authUid;
     ["ltl","stl"].forEach(function(kk){if(c.d[kk]){var pk=kk==="ltl"?"ltlPrin":"stlPrin";doc[kk]=effBal(m,c.month,kk,pk)+c.d[kk]}});
-    await db.collection("monthly").doc(k).set(doc);
-    var local=Object.assign({},doc,{id:k}),ix=monthly.findIndex(function(x){return x.id===k});
-    if(ix>=0)monthly[ix]=local;else monthly.push(local)}}
+    var before=effCarry(m,c.month,"gfM");
+    if(c.gf)doc.gfM=before+c.gf;
+    await put(k,doc);
+    if(c.gf){
+      /* GF this month carries forward, so keep next month at its old value */
+      var nm=nextMon(c.month),nd=docsOf(c.memberId)[nm];
+      if(!nd||nd.gfM===undefined){var d2=Object.assign({},nd||{});delete d2.id;d2.memberId=c.memberId;d2.month=nm;d2.ownerUid=m.authUid;d2.gfM=before;await put(c.memberId+"_"+nm,d2)}
+    }}}
 function dispView(){
   var srt=members.slice().sort(function(a,b){return a.name.localeCompare(b.name)});
   var h=topRow();
@@ -535,7 +541,7 @@ function dispView(){
   var tdMon=rows.reduce(function(a,x){return a+(+x.instalment||0)},0);
   var sel=function(arr,v){return arr.map(function(x){return '<option'+(x===v?' selected':'')+'>'+x+'</option>'}).join("")};
   h+='<div class="card"><b>Loan disbursement</b>'+(e?'<div class="note" style="color:var(--bad);font-weight:600">Editing a saved record. Change the boxes below, then tap Update record.</div>':'')+'<div class="fl" style="margin-top:10px">Month and year</div><input type="month" id="dbmon" value="'+dbMon+'"><div class="fl">Name of the member</div><select id="dbm" class="sel">'+srt.map(function(x){return '<option value="'+x.id+'"'+(x.id===dbMem?' selected':'')+'>'+esc(x.name)+'</option>'}).join("")+'</select></div>';
-  var HH=["Type of loan","Loan sanctioned","Instalment this month","Complete / instalment","GF %","GF value","GF date","Check number"];
+  var HH=["Type of loan","Loan sanctioned","Instalment this month","Complete / instalment","GF %","GF value","GF date","Cheque value","Cheque number"];
   h+='<div class="xw"><table class="xt"><tr>'+HH.map(function(x){return '<th>'+x+'</th>'}).join("")+'</tr><tr>'+
    '<td><select id="db_type">'+sel(LOANS,e&&e.type)+'</select></td>'+
    '<td><input id="db_san" type="number" inputmode="decimal" step="any" value="'+esc(blank(e&&e.sanctioned))+'"></td>'+
@@ -543,13 +549,14 @@ function dispView(){
    '<td><select id="db_stage">'+sel(STAGES,e&&e.stage)+'</select></td>'+
    '<td><input id="db_gfp" type="number" inputmode="decimal" step="any" value="'+esc(blank(e&&e.gfPct))+'"></td>'+
    '<td><span class="pill" id="db_gfv">'+esc(blank(e&&e.gfValue))+'</span></td><td><span class="pill">'+(e?esc(e.gfDate):today)+'</span></td>'+
-   '<td><input id="db_chk" placeholder="Check no." value="'+esc(e?e.checkNo:"")+'"></td></tr></table></div>';
+   '<td><span class="pill" id="db_cv">'+esc(blank(e&&e.chequeValue))+'</span></td>'+'<td><input id="db_chk" placeholder="Cheque no." value="'+esc(e?e.checkNo:"")+'"></td></tr></table></div>';
   h+='<div style="display:flex;gap:10px"><button class="mb" id="dbsave" style="flex:1">'+(e?'Update record':'Save')+'</button>'+(e?'<button class="mb b-peach" id="dbcancel" style="flex:1">Cancel edit</button>':'<button class="mb b-peach" id="dbback" style="flex:1">Back</button>')+'</div>';
   h+='<div class="grid"><div class="sbtn s-out"><div class="k">Total disbursement</div><div class="sv">'+fmt(totalOut())+'</div></div><div class="sbtn s-in"><div class="k">Disbursement in this month</div><div class="sv">'+fmt(tdMon)+'</div></div></div>';
-  h+='<div class="xw"><table class="xt"><tr>'+["Name","Type of loan","Loan sanctioned","Instalment","Instalment stage","GF %","GF value","GF date","Check number","Action"].map(function(x){return '<th>'+x+'</th>'}).join("")+'</tr>';
-  if(!rows.length)h+='<tr><td colspan="10" style="text-align:center">No disbursement saved for this month.</td></tr>';
-  rows.forEach(function(x){h+='<tr><td class="n">'+esc(x.memberName)+'</td><td>'+esc(x.type)+'</td><td>'+Number(x.sanctioned||0).toLocaleString()+'</td><td>'+Number(x.instalment||0).toLocaleString()+'</td><td>'+esc(x.stage)+'</td><td>'+esc(x.gfPct)+'</td><td>'+Number(x.gfValue||0).toLocaleString()+'</td><td>'+esc(x.gfDate)+'</td><td>'+esc(x.checkNo)+'</td><td style="white-space:nowrap"><button class="g" data-de="'+x.id+'">Edit</button> <button class="g no" data-dd="'+x.id+'">✕</button></td></tr>'});
-  h+='<tr class="t"><td class="n">Total</td><td></td><td></td><td>'+tdMon.toLocaleString()+'</td><td></td><td></td><td></td><td></td><td></td><td></td></tr></table></div>';
+  h+='<div class="xw"><table class="xt"><tr>'+["Name","Type of loan","Loan sanctioned","Instalment","Instalment stage","GF %","GF value","GF date","Cheque value","Cheque number","Action"].map(function(x){return '<th>'+x+'</th>'}).join("")+'</tr>';
+  if(!rows.length)h+='<tr><td colspan="11" style="text-align:center">No disbursement saved for this month.</td></tr>';
+  rows.forEach(function(x){h+='<tr><td class="n">'+esc(x.memberName)+'</td><td>'+esc(x.type)+'</td><td>'+Number(x.sanctioned||0).toLocaleString()+'</td><td>'+Number(x.instalment||0).toLocaleString()+'</td><td>'+esc(x.stage)+'</td><td>'+esc(x.gfPct)+'</td><td>'+Number(x.gfValue||0).toLocaleString()+'</td><td>'+esc(x.gfDate)+'</td><td>'+Number(x.chequeValue!=null?x.chequeValue:((+x.instalment||0)-(+x.gfValue||0))).toLocaleString()+'</td><td>'+esc(x.checkNo)+'</td><td style="white-space:nowrap"><button class="g" data-de="'+x.id+'">Edit</button> <button class="g no" data-dd="'+x.id+'">✕</button></td></tr>'});
+  var tg=rows.reduce(function(a,x){return a+(+x.gfValue||0)},0);
+  h+='<tr class="t"><td class="n">Total</td><td></td><td></td><td>'+tdMon.toLocaleString()+'</td><td></td><td></td><td>'+tg.toLocaleString()+'</td><td></td><td>'+(tdMon-tg).toLocaleString()+'</td><td></td><td></td></tr></table></div>';
   return h;
 }
 
@@ -795,7 +802,7 @@ function bind(){
   /* loan disbursement */
   var dbm=$("dbm");if(dbm)dbm.onchange=function(){dbMem=dbm.value};
   var dbmon=$("dbmon");if(dbmon)dbmon.onchange=function(){if(dbEdit)return;dbMon=dbmon.value||dbMon;render()};
-  if($("db_ins")){var upd2=function(){var g=function(i){return parseFloat($(i).value)||0};var v=Math.round(g("db_ins")*g("db_gfp")/100);$("db_gfv").textContent=v?v:""};
+  if($("db_ins")){var upd2=function(){var g=function(i){return parseFloat($(i).value)||0};var ins0=g("db_ins"),v=Math.round(ins0*g("db_gfp")/100);$("db_gfv").textContent=v?v:"";$("db_cv").textContent=ins0?(ins0-v):""};
     ["db_ins","db_gfp"].forEach(function(i){$(i).oninput=upd2})}
   go("dbback",function(){tab="home";render()});
   go("dbsave",async function(){
@@ -803,22 +810,22 @@ function bind(){
     var type=$("db_type").value,san=g("db_san"),ins=g("db_ins"),stage2=$("db_stage").value,gfp=g("db_gfp"),chk=$("db_chk").value.trim();
     if(!m||!(ins>0)){toast("Choose the member and enter the instalment amount.");return}
     var gfv=Math.round(ins*gfp/100),old=dbEdit?disb.find(function(x){return x.id===dbEdit}):null,today=new Date().toISOString().slice(0,10);
-    var rec={memberId:id,memberName:m.name,month:mon2,type:type,sanctioned:san,instalment:ins,stage:stage2,gfPct:gfp,gfValue:gfv,gfDate:old?old.gfDate:today,checkNo:chk};
+    var rec={memberId:id,memberName:m.name,month:mon2,type:type,sanctioned:san,instalment:ins,stage:stage2,gfPct:gfp,gfValue:gfv,chequeValue:ins-gfv,gfApplied:true,gfDate:old?old.gfDate:today,checkNo:chk};
     try{
       await db.collection("disb").doc(old?old.id:uid()).set(rec);
-      var ch=[{memberId:id,month:mon2,type:type,delta:ins}];
-      if(old)ch.push({memberId:old.memberId,month:old.month,type:old.type,delta:-(+old.instalment||0)});
+      var ch=[{memberId:id,month:mon2,type:type,delta:ins,gf:gfv}];
+      if(old)ch.push({memberId:old.memberId,month:old.month,type:old.type,delta:-(+old.instalment||0),gf:old.gfApplied?-(+old.gfValue||0):0});
       await applyDisbChanges(ch);
       var was=!!old;dbEdit="";dbMon=mon2;logAct(was?"Loan record updated":"Loan disbursed",m.name+" · "+type+" · "+ins+" · "+mon2);
-      toast(was?"Record updated. LTL / STL of the month is corrected.":"Saved. The instalment is added to "+(type==="LTL"?"LTL":"STL")+" this month.",true,5000);render()}
+      toast(was?"Record updated. LTL / STL and GF of the month are corrected.":"Saved. The instalment is added to "+(type==="LTL"?"LTL":"STL")+" and the GF value to GF of this month.",true,5000);render()}
     catch(e){toast("Could not save: "+(e&&e.message||e))}});
   document.querySelectorAll("[data-de]").forEach(function(b){b.onclick=function(){var r=disb.find(function(x){return x.id===b.dataset.de});if(!r)return;dbEdit=r.id;dbMon=r.month;dbMem=r.memberId;render();window.scrollTo(0,0)}});
   go("dbcancel",function(){dbEdit="";render()});
   document.querySelectorAll("[data-dd]").forEach(function(b){b.onclick=async function(){
     var id=b.dataset.dd,r=disb.find(function(x){return x.id===id});if(!r)return;
-    if(pend!=="disb"+id){pend="disb"+id;toast("Tap delete again to remove this record. Its instalment is taken back from LTL / STL.");setTimeout(function(){pend=null},4500);return}
+    if(pend!=="disb"+id){pend="disb"+id;toast("Tap delete again to remove this record. Its instalment and GF value are taken back.");setTimeout(function(){pend=null},4500);return}
     pend=null;
-    try{await applyDisbChanges([{memberId:r.memberId,month:r.month,type:r.type,delta:-(+r.instalment||0)}]);await db.collection("disb").doc(id).delete();logAct("Loan record deleted",r.memberName+" · "+r.type+" · "+r.instalment+" · "+r.month);toast("Record deleted.",true)}
+    try{await applyDisbChanges([{memberId:r.memberId,month:r.month,type:r.type,delta:-(+r.instalment||0),gf:r.gfApplied?-(+r.gfValue||0):0}]);await db.collection("disb").doc(id).delete();logAct("Loan record deleted",r.memberName+" · "+r.type+" · "+r.instalment+" · "+r.month);toast("Record deleted.",true)}
     catch(e){toast("Could not delete.")}}});
   /* administrators */
   go("aasave",async function(){var code=$("aa_code").value,nm=$("aa_name").value.trim(),pw=$("aa_pw").value,id=$("aa_id").value.trim();
