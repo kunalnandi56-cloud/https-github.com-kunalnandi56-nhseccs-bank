@@ -350,6 +350,7 @@ function auditView(){
   var h=topRow()+'<div class="card"><h2>Activity log</h2><div class="sub">Every change made by an administrator. The newest 200 entries are shown. Entries cannot be edited or deleted.</div></div>';
   var rows=auditList.map(function(x){var d=new Date(x.t),when=isNaN(d)?esc(x.t):d.toLocaleString();return '<tr><td class="n">'+when+'</td><td>'+esc(x.by)+'</td><td>'+esc(x.action)+'</td><td style="white-space:normal;text-align:left">'+esc(x.detail)+'</td></tr>'}).join("");
   return h+'<div class="card pa"><div class="xw"><table class="xt"><tr><th>Date and time</th><th>Administrator</th><th>Action</th><th>Details</th></tr>'+(rows||'<tr><td colspan="4" style="text-align:center">No activity recorded yet.</td></tr>')+'</table></div></div><button class="mb" id="xprint">Print</button><button class="mb" id="xdl">Download</button>'}
+var APPVER="Version 8";
 var LOANS=["LTL","STL (Medical)","STL (Other)"];
 var STAGES=["Complete","1st installment","2nd installment","3rd installment","4th installment","5th installment"];
 var TABS=[["home","Summary"],["mem","Members"],["det","Details"],["led","Ledger"],["apps","Apps"],["disb","Loan disbursement"]];
@@ -445,7 +446,7 @@ function render(){
     if(stage==="loading")g=gate("Group Fund",'<div class="sub">Loading…</div>');
     else if(stage==="nodb")g=gate("Group Fund",'<div class="sub">'+(GF.configured?'Cannot connect to the database. Check your internet connection, then tap Try again.':'Setup needed: open index.html and paste your Firebase settings.')+'</div>'+(lastErr?'<div class="note">Details: '+esc(lastErr)+'</div>':'')+'<br><button id="retry">Try again</button>');
     else if(stage==="lock")g=gate("Group Fund",'<div class="sub">Unlock with your fingerprint or face.</div><br><button id="unlock">Unlock</button><button class="g" id="lout">Use another account</button>');
-    else if(stage==="choose")g=gate("Welcome",'<div class="sub">Choose how you would like to log in.</div><br><button class="b3d gold" id="lm">Member login</button><button class="b3d navy" id="la">Administrative login</button>'+(bioGet().member&&bioGet().member.sec?'<button class="b3d" id="bioin">Login with biometric</button>':'')+'<button class="g" id="ginst">Install app</button>');
+    else if(stage==="choose")g=gate("Welcome",'<div class="sub">Choose how you would like to log in.</div><br><button class="b3d gold" id="lm">Member login</button><button class="b3d navy" id="la">Administrative login</button>'+(bioGet().member&&bioGet().member.sec?'<button class="b3d" id="bioin">Login with biometric</button>':'')+'<button class="g" id="ginst">Install app</button><div class="note" style="text-align:center;margin-top:10px">'+APPVER+'</div>');
     else if(stage==="mlogin"){
       if(!mStep)g=gate("Member login",'<div class="fl">Society code</div><input class="pw" id="sc1" type="password" placeholder="Society code" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" value="'+esc(keep.code)+'"><button class="g" id="shw">Show / hide</button><button class="b3d gold" id="mcode">Continue</button><button class="g" id="bk">Back</button>');
       else g=gate("Member login",'<div class="fl">Choose your name</div><select id="ms"><option value="">'+(dirList.length?'Choose your name':'Loading names…')+'</option>'+dirList.slice().sort(function(a,b){return (a.name||"").localeCompare(b.name||"")}).map(function(m){return '<option value="'+m.id+'"'+(keep.mid===m.id?' selected':'')+'>'+esc((m.name||"").toUpperCase())+'</option>'}).join("")+'</select><div class="fl">Password</div><input class="pw" id="mpn" type="password" placeholder="Password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"><button class="g" id="shw">Show / hide</button><button class="b3d gold" id="mgo">Login</button><button class="g" id="bk">Back</button>')}
@@ -475,7 +476,7 @@ function home(){
    '<div class="card"><div class="k">Members</div><div class="v">'+members.length+' / 50</div></div></div>';
   if(adminList.length<3)h+='<button class="mb" id="gadd">Add administrator</button>';
   if(adminList.length>0)h+='<button class="mb" id="gchg">Change administrator</button>';
-  return h+'<button class="mb" id="gaud">Activity log</button><button class="mb" id="gbk1">Backup (JSON file)</button><button class="mb" id="gbk2">Backup (Excel)</button><button class="mb" id="ainst">Install app</button>';
+  return h+'<button class="mb" id="gaud">Activity log</button><button class="mb" id="gbk1">Backup (JSON file)</button><button class="mb" id="gbk2">Backup (Excel)</button><button class="mb" id="ainst">Install app</button><div class="note" style="text-align:center">'+APPVER+'</div>';
 }
 function F(id,l,v,t){return '<div class="fl">'+l+'</div><input id="'+id+'" '+(t==="t"?'':'type="number" inputmode="decimal" step="any" ')+'value="'+esc(blank(v))+'">'}
 function editCard(){
@@ -619,8 +620,10 @@ if(mview==="sheet"){
     approved.map(function(x){return '<div class="card"><b style="color:var(--ok)">✔ Your application is approved</b><div class="sub">'+esc(x.type||"LTL")+' · '+fmt(x.amount)+'</div></div>'}).join("");
   var fo="";for(var y=selFy-2;y<=selFy+2;y++)fo+='<option value="'+y+'"'+(y===selFy?' selected':'')+'>'+y+' – '+(y+1)+'</option>';
   var mo="";[4,5,6,7,8,9,10,11,12,1,2,3].forEach(function(k){var yr=k>=4?selFy:selFy+1;mo+='<option value="'+k+'"'+(k===selMo?' selected':'')+'>'+MN[k-1]+' '+yr+'</option>'});
+  var B2=function(l,v){return '<div'+(l==="Membership number"?' style="grid-column:1/-1"':'')+'><div class="fl">'+l+'</div><div class="pill" style="text-align:left;min-height:34px">'+esc(v||"—")+'</div></div>'};
+  var detCard='<div class="card"><h2>Membership details</h2><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'+B2("Membership number",m.regNo)+B2("Nominee",m.nominee)+B2("Relation",m.relation)+'</div></div>';
   var bioOn=!!(bioGet().member&&bioGet().member.memberId===meId);
-  return bar+notice+'<div class="card"><h2>Year and month</h2><div class="sub">'+esc(m.name)+'</div><br><div class="grid"><div><div class="k">Year</div><select id="fy" class="sel">'+fo+'</select></div><div><div class="k">Month</div><select id="fm" class="sel">'+mo+'</select></div></div>'+
+  return bar+notice+detCard+'<div class="card"><h2>Year and month</h2><div class="sub">'+esc(m.name)+'</div><br><div class="grid"><div><div class="k">Year</div><select id="fy" class="sel">'+fo+'</select></div><div><div class="k">Month</div><select id="fm" class="sel">'+mo+'</select></div></div>'+
   '<button class="mb b-gold" id="chg">Change month</button>'+
   '<button class="mb b-gold" id="bxl">Open Excel sheet</button><button class="mb b-rule" id="brules">Rules and Regulations</button><button class="mb b-mint" id="bapp">Application</button><button class="mb b-mint" id="blist">LTL Application list</button><button class="mb b-mint" id="bdiv">Dividend</button><button class="mb b-mint" id="bcp">Change password</button><button class="mb b-mint" id="bbio">'+(bioOn?"Turn off biometric":"Enable biometric")+'</button><button class="mb b-peach" id="bout">← Back</button></div>';
 }
