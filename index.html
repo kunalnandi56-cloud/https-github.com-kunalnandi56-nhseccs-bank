@@ -194,6 +194,11 @@ input:disabled,select:disabled,textarea:disabled{opacity:.72;background:var(--ti
   body.printing::after{display:none}
   .xw{overflow:visible!important;border:0}.xt{font-size:9px}.xt th,.xt td{padding:4px 5px}
 }
+
+#gaud{--c1:#E8E0F9;--c2:#D0C2F1;--e:#9585C7}
+#gbk1,#credcopy{--c1:#D8F4E6;--c2:#B6E8D0;--e:#6DB896}
+#gbk2{--c1:#DCEBFA;--c2:#B9D6F3;--e:#78A5D0}
+#creddone{--c1:#FDE3D2;--c2:#F8C8A8;--e:#D39772}
 </style>
 </head>
 <body>
@@ -209,7 +214,7 @@ if("serviceWorker" in navigator&&location.protocol.indexOf("http")===0)window.ad
 window.__ie=null;window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();window.__ie=e});
 function gfStart(){
 (function(){
-var CUR="₹",dvAdmFy=0,dvFy=0,dbMon=new Date().toISOString().slice(0,7),dbMem="",divRates={tf:0,gf:0,sh:0,cv:0,ts:0,dv:0},keep={code:"",user:"",mid:""},dirList=[],sessionUser=null,unsubs=[],authChecked=false,members=[],monthly=[],apps=[],disb=[],ltlList=[],adminList=[],rulesLoaded=false,forceChg=false,tab="home",db=null,canWrite=false,stage="loading",mview="home",editId=null,detId=null,rulesText="",selFy=0,selMo=0,installEv=null,isAdmin=false,meId=null,err="",lastErr="",editMode=false,msSel="",msFy=0,dbEdit="";
+var CUR="₹",dvAdmFy=0,dvFy=0,dbMon=new Date().toISOString().slice(0,7),dbMem="",divRates={tf:0,gf:0,sh:0,cv:0,ts:0,dv:0},keep={code:"",user:"",mid:""},dirList=[],sessionUser=null,unsubs=[],authChecked=false,members=[],monthly=[],apps=[],disb=[],ltlList=[],adminList=[],rulesLoaded=false,forceChg=false,tab="home",db=null,canWrite=false,stage="loading",mview="home",editId=null,detId=null,rulesText="",selFy=0,selMo=0,installEv=null,isAdmin=false,meId=null,err="",lastErr="",editMode=false,msSel="",msFy=0,dbEdit="",auditList=[],newCred=null,mStep=0,dirUnsub=null,chgChecked=false;
 var month=new Date().toISOString().slice(0,7);
 var MN=["January","February","March","April","May","June","July","August","September","October","November","December"];
 function fyOf(mo){var y=+mo.slice(0,4),m=+mo.slice(5,7);return m>=4?y:y-1}
@@ -319,6 +324,32 @@ function idbPut(d,k){return new Promise(function(res,rej){var t=d.transaction("k
 async function getKey(){var d=await idbOpen(),k=await idbGet(d);if(k)return k;k=await crypto.subtle.generateKey({name:"AES-GCM",length:256},false,["encrypt","decrypt"]);await idbPut(d,k);return k}
 async function encSecret(txt){var k=await getKey(),iv=crypto.getRandomValues(new Uint8Array(12)),ct=await crypto.subtle.encrypt({name:"AES-GCM",iv:iv},k,new TextEncoder().encode(txt));return b2s(iv)+"."+b2s(ct)}
 async function decSecret(x){var p=x.split("."),k=await getKey(),pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:s2b(p[0])},k,s2b(p[1]));return new TextDecoder().decode(pt)}
+
+function genPw(){
+  var U="ABCDEFGHJKLMNPQRSTUVWXYZ",L="abcdefghijkmnpqrstuvwxyz",D="23456789",S="@#$%&*!?",all=U+L+D+S;
+  var r=function(n){var a=new Uint32Array(1);crypto.getRandomValues(a);return a[0]%n};
+  var pick=function(x){return x.charAt(r(x.length))};
+  var out=[pick(U),pick(L),pick(D),pick(S)];
+  while(out.length<12)out.push(pick(all));
+  for(var i=out.length-1;i>0;i--){var j=r(i+1),t=out[i];out[i]=out[j];out[j]=t}
+  return out.join("")}
+function copyText(t){
+  var fb=function(){var ta=document.createElement("textarea");ta.value=t;ta.style.position="fixed";ta.style.opacity="0";document.body.appendChild(ta);ta.focus();ta.select();var ok=false;try{ok=document.execCommand("copy")}catch(e){}ta.remove();toast(ok?"Copied.":"Could not copy. Press and hold the password to copy it.",ok)};
+  try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){toast("Copied.",true)},fb);return}}catch(e){}
+  fb()}
+function credMsg(c){return "NHSECCS member banking app\nLink: "+APPURL+"\nName: "+c.name+"\nPassword: "+c.pw+"\n(The society code will be sent separately.)\nYou must change this password when you first log in."}
+function credCard(){return '<div class="card" style="border-color:#E0BF68"><b>Give this password to '+esc(newCred.name)+'</b><div class="v" style="font-size:24px;word-break:break-all;margin:8px 0">'+esc(newCred.pw)+'</div><div class="note">It is shown only now and is not saved anywhere. The member must change it at the first login.</div><button class="mb" id="credcopy">Copy message to send</button><button class="mb b-peach" id="creddone">Done</button></div>'}
+function adminWho(){var u=GF.auth.currentUser;if(!u)return"";if(u.email&&u.email.toLowerCase()===GF.admin.toLowerCase())return"Owner ("+u.email+")";var a=adminList.find(function(x){return x.id===u.uid});return a?a.userId+" "+a.name:(u.email||u.uid)}
+function logAct(action,detail){if(!isAdmin||!db)return;try{db.collection("audit").doc(uid()).set({t:new Date().toISOString(),by:adminWho(),action:action,detail:detail||""}).catch(function(){})}catch(e){}}
+function saveFile(name,text,type,bom){var b=new Blob([(bom?"\ufeff":"")+text],{type:type});var a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},1500)}
+function flatRow(o){var r={};Object.keys(o).forEach(function(k){var v=o[k];r[k]=(v!==null&&typeof v==="object")?JSON.stringify(v):v});return r}
+function backupData(){return {exportedAt:new Date().toISOString(),exportedBy:adminWho(),members:members,monthly:monthly,applications:apps,disbursements:disb,ltlList:ltlList,administrators:adminList,settings:{rulesText:rulesText,dividend:divRates},activityLog:auditList}}
+function startDir(){if(dirUnsub)return;dirUnsub=GF.watch("directory",null,"x",function(q){dirList=toList(q);if(stage==="mlogin")render()},function(e){lastErr=(e&&(e.code||e.message))||"error";err="Cannot read the member names ("+lastErr+"). Check your internet and the Firestore rules.";if(stage==="mlogin")render()})}
+function stopDir(){if(dirUnsub){try{dirUnsub()}catch(e){}dirUnsub=null}dirList=[]}
+function auditView(){
+  var h=topRow()+'<div class="card"><h2>Activity log</h2><div class="sub">Every change made by an administrator. The newest 200 entries are shown. Entries cannot be edited or deleted.</div></div>';
+  var rows=auditList.map(function(x){var d=new Date(x.t),when=isNaN(d)?esc(x.t):d.toLocaleString();return '<tr><td class="n">'+when+'</td><td>'+esc(x.by)+'</td><td>'+esc(x.action)+'</td><td style="white-space:normal;text-align:left">'+esc(x.detail)+'</td></tr>'}).join("");
+  return h+'<div class="card pa"><div class="xw"><table class="xt"><tr><th>Date and time</th><th>Administrator</th><th>Action</th><th>Details</th></tr>'+(rows||'<tr><td colspan="4" style="text-align:center">No activity recorded yet.</td></tr>')+'</table></div></div><button class="mb" id="xprint">Print</button><button class="mb" id="xdl">Download</button>'}
 var LOANS=["LTL","STL (Medical)","STL (Other)"];
 var STAGES=["Complete","1st installment","2nd installment","3rd installment","4th installment","5th installment"];
 var TABS=[["home","Summary"],["mem","Members"],["det","Details"],["led","Ledger"],["apps","Apps"],["disb","Loan disbursement"]];
@@ -332,7 +363,7 @@ async function del(col,id){
   if(!canWrite)return;
   if(pend!==col+id){pend=col+id;toast("Tap the delete button again to confirm.");setTimeout(function(){pend=null},4500);return}
   pend=null;
-  try{await db.collection(col).doc(id).delete();if(col==="members")await db.collection("directory").doc(id).delete()}catch(e){toast("Could not delete")}
+  try{var who=col==="members"?((members.find(function(x){return x.id===id})||{}).name||id):col==="ltl"?((ltlList.find(function(x){return x.id===id})||{}).name||id):id;await db.collection(col).doc(id).delete();if(col==="members")await db.collection("directory").doc(id).delete();logAct(col==="members"?"Member deleted":"LTL name deleted",who)}catch(e){toast("Could not delete")}
 }
 function docsOf(id){var o={};monthly.forEach(function(x){if(x.memberId===id)o[x.month]=x});return o}
 function nextMon(mo){var y=+mo.slice(0,4),m=+mo.slice(5,7)+1;if(m>12){m=1;y++}return y+"-"+String(m).padStart(2,"0")}
@@ -415,7 +446,9 @@ function render(){
     else if(stage==="nodb")g=gate("Group Fund",'<div class="sub">'+(GF.configured?'Cannot connect to the database. Check your internet connection, then tap Try again.':'Setup needed: open index.html and paste your Firebase settings.')+'</div>'+(lastErr?'<div class="note">Details: '+esc(lastErr)+'</div>':'')+'<br><button id="retry">Try again</button>');
     else if(stage==="lock")g=gate("Group Fund",'<div class="sub">Unlock with your fingerprint or face.</div><br><button id="unlock">Unlock</button><button class="g" id="lout">Use another account</button>');
     else if(stage==="choose")g=gate("Welcome",'<div class="sub">Choose how you would like to log in.</div><br><button class="b3d gold" id="lm">Member login</button><button class="b3d navy" id="la">Administrative login</button>'+(bioGet().member&&bioGet().member.sec?'<button class="b3d" id="bioin">Login with biometric</button>':'')+'<button class="g" id="ginst">Install app</button>');
-    else if(stage==="mlogin")g=gate("Member login",'<div class="fl">Society code</div><input class="pw" id="sc1" type="password" placeholder="Society code" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" value="'+esc(keep.code)+'"><div class="fl">Choose your name</div><select id="ms"><option value="">Choose your name</option>'+dirList.slice().sort(function(a,b){return (a.name||"").localeCompare(b.name||"")}).map(function(m){return '<option value="'+m.id+'"'+(keep.mid===m.id?' selected':'')+'>'+esc((m.name||"").toUpperCase())+'</option>'}).join("")+'</select><div class="fl">Password</div><input class="pw" id="mpn" type="password" placeholder="Password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"><button class="g" id="shw">Show / hide</button><button class="b3d gold" id="mgo">Login</button><button class="g" id="bk">Back</button>');
+    else if(stage==="mlogin"){
+      if(!mStep)g=gate("Member login",'<div class="fl">Society code</div><input class="pw" id="sc1" type="password" placeholder="Society code" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" value="'+esc(keep.code)+'"><button class="g" id="shw">Show / hide</button><button class="b3d gold" id="mcode">Continue</button><button class="g" id="bk">Back</button>');
+      else g=gate("Member login",'<div class="fl">Choose your name</div><select id="ms"><option value="">'+(dirList.length?'Choose your name':'Loading names…')+'</option>'+dirList.slice().sort(function(a,b){return (a.name||"").localeCompare(b.name||"")}).map(function(m){return '<option value="'+m.id+'"'+(keep.mid===m.id?' selected':'')+'>'+esc((m.name||"").toUpperCase())+'</option>'}).join("")+'</select><div class="fl">Password</div><input class="pw" id="mpn" type="password" placeholder="Password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"><button class="g" id="shw">Show / hide</button><button class="b3d gold" id="mgo">Login</button><button class="g" id="bk">Back</button>')}
     else if(stage==="alogin")g=gate("Administrative login",'<div class="fl">Society code</div><input class="pw" id="sc2" type="password" placeholder="Society code" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" value="'+esc(keep.code)+'"><div class="fl">Password</div><input class="pw" id="ap" type="password" placeholder="Password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"><div class="fl">User ID</div><input id="au" placeholder="User ID" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" value="'+esc(keep.user)+'"><button class="g" id="shw">Show / hide</button><button class="b3d navy" id="ago">Login</button><button class="g" id="bk">Back</button>');
     $("note").textContent="";$("app").innerHTML=g;bindGate();return;
   }
@@ -426,7 +459,7 @@ function render(){
     b.onclick=function(){tab=x[0];editMode=false;render()};t.appendChild(b)});
   $("note").textContent="";
   var h;
-  if(tab==="home")h=home();else if(tab==="mem")h=memView();else if(tab==="det")h=detailsView();else if(tab==="led")h=ledView();else if(tab==="apps")h=appsView();else if(tab==="ltl")h=ltlView();else if(tab==="disb")h=dispView();else if(tab==="sheet")h=sheetView();else if(tab==="msheet")h=msheetView();else if(tab==="dvform")h=dvFormView();else if(tab==="addadm")h=addAdmView();else if(tab==="chgadm")h=chgAdmView();else h=home();
+  if(tab==="home")h=home();else if(tab==="mem")h=memView();else if(tab==="det")h=detailsView();else if(tab==="led")h=ledView();else if(tab==="apps")h=appsView();else if(tab==="ltl")h=ltlView();else if(tab==="disb")h=dispView();else if(tab==="sheet")h=sheetView();else if(tab==="msheet")h=msheetView();else if(tab==="audit")h=auditView();else if(tab==="dvform")h=dvFormView();else if(tab==="addadm")h=addAdmView();else if(tab==="chgadm")h=chgAdmView();else h=home();
   $("app").innerHTML=h+'<button class="mb b-peach" id="abk">← Back</button>';
   bind();applyLock();
 }
@@ -442,16 +475,16 @@ function home(){
    '<div class="card"><div class="k">Members</div><div class="v">'+members.length+' / 50</div></div></div>';
   if(adminList.length<3)h+='<button class="mb" id="gadd">Add administrator</button>';
   if(adminList.length>0)h+='<button class="mb" id="gchg">Change administrator</button>';
-  return h+'<button class="mb" id="ainst">Install app</button>';
+  return h+'<button class="mb" id="gaud">Activity log</button><button class="mb" id="gbk1">Backup (JSON file)</button><button class="mb" id="gbk2">Backup (Excel)</button><button class="mb" id="ainst">Install app</button>';
 }
 function F(id,l,v,t){return '<div class="fl">'+l+'</div><input id="'+id+'" '+(t==="t"?'':'type="number" inputmode="decimal" step="any" ')+'value="'+esc(blank(v))+'">'}
 function editCard(){
   var m=members.find(function(x){return x.id===editId});if(!m)return"";
-  return '<div class="card"><b>Edit member</b>'+F("e_name","Name",m.name,"t")+F("e_reg","Registration Number",m.regNo,"t")+F("e_nom","Nominee",m.nominee,"t")+'<div class="fl">Relation</div><select id="e_rel">'+relOpts(m.relation)+'</select>'+'<button id="esave">Save</button><button class="g" id="erst">Reset password to default</button><button class="g" id="ecan">Cancel</button></div>';
+  return '<div class="card"><b>Edit member</b>'+F("e_name","Name",m.name,"t")+F("e_reg","Registration Number",m.regNo,"t")+F("e_nom","Nominee",m.nominee,"t")+'<div class="fl">Relation</div><select id="e_rel">'+relOpts(m.relation)+'</select>'+'<button id="esave">Save</button><button class="g" id="erst">Reset password (new password)</button><button class="g" id="ecan">Cancel</button></div>';
 }
 function memView(){
-  var h=topRow()+(editId?editCard():"");
-  h+='<div class="card"><b>Add member</b><div class="note">New members get the default password. They can change it after they log in.</div><input id="mn" placeholder="Name of the member" autocapitalize="characters"><input id="mr" placeholder="Registration Number"><input id="mnm" placeholder="Nominee"><select id="mrel">'+relOpts("")+'</select><button id="madd">Add member</button></div><div class="card">';
+  var h=topRow()+(newCred?credCard():"")+(editId?editCard():"");
+  h+='<div class="card"><b>Add member</b><div class="note">Each new member gets their own password. It is shown once, right after you add the member.</div><input id="mn" placeholder="Name of the member" autocapitalize="characters"><input id="mr" placeholder="Registration Number"><input id="mnm" placeholder="Nominee"><select id="mrel">'+relOpts("")+'</select><button id="madd">Add member</button></div><div class="card">';
   if(!members.length)h+='<div class="sub">No members yet.</div>';
   members.slice().sort(function(a,b){return a.name.localeCompare(b.name)}).forEach(function(m){
     h+='<div class="row"><span><b>'+esc(m.name)+'</b><div class="sub">Reg. No. '+esc(m.regNo||"-")+' · Nominee: '+esc(m.nominee||"-")+' ('+esc(m.relation||"-")+')</div></span><div><button class="g" data-ed="'+m.id+'">Edit</button> <button class="g" data-dm="'+m.id+'">✕</button></div></div>'});
@@ -615,7 +648,7 @@ function bindMember(){
     if(n1!==n2){toast("The two new passwords do not match.");return}
     if(!pwOk(n1)){toast(PWMSG,false,6000);return}
     if(n1===c){toast("The new password must be different from the current password.");return}
-    try{await GF.changePassword(GF.auth.currentUser.email,c,n1);var bb=bioGet();if(bb.member&&bb.member.memberId===meId){try{bb.member.sec=await encSecret(n1);bioSet(bb)}catch(x){}}forceChg=false;mview="home";render();toast("Password changed.",true)}
+    try{await GF.changePassword(GF.auth.currentUser.email,c,n1);var bb=bioGet();if(bb.member&&bb.member.memberId===meId){try{bb.member.sec=await encSecret(n1);bioSet(bb)}catch(x){}}try{await db.collection("members").doc(meId).update({mustChange:false})}catch(x){}forceChg=false;mview="home";render();toast("Password changed.",true)}
     catch(e){toast((e&&(e.code==="auth/invalid-credential"||e.code==="auth/wrong-password"||e.code==="auth/invalid-login-credentials"))?"Current password is incorrect.":"Could not change the password. "+((e&&e.code)||""),false,6000)}});
   go("bbio",function(){var b=bioGet();
     if(b.member&&b.member.memberId===meId){delete b.member;bioSet(b);try{GF.persist(false)}catch(e){}toast("Biometric turned off.",true);render();return}
@@ -628,19 +661,20 @@ function bindMember(){
 }
 function bindGate(){
   var q=$,go=function(id,fn){var e=q(id);if(e)e.onclick=fn};
-  go("bk",function(){stage="choose";err="";render()});
+  go("bk",function(){stage="choose";err="";mStep=0;stopDir();render()});
+  go("mcode",async function(){var code=q("sc1").value;keep.code=code;if(!(await codeOk(code))){err="Incorrect society code.";render();return}err="";mStep=1;startDir();render()});
   go("ginst",doInstall);go("retry",function(){location.reload()});
   go("bioin",async function(){var b=bioGet().member;
     try{await bioCheck(b.cid)}catch(e){err="Biometric check failed or was cancelled.";render();return}
     try{var pw=await decSecret(b.sec);await GF.signIn(b.email,pw);meId=b.memberId;enter(false);err=""}
     catch(e){err="The saved password no longer works. Log in with your password and enable biometric again.";var x=bioGet();delete x.member;bioSet(x)}render()});
-  go("lm",function(){stage="mlogin";err="";render()});
+  go("lm",function(){stage="mlogin";err="";mStep=0;stopDir();render()});
   go("la",function(){stage="alogin";err="";render()});
   go("shw",togglePw);
-  go("mgo",async function(){var code=q("sc1").value,id=q("ms").value,pw=q("mpn").value.trim();keep.code=code;keep.mid=id;
+  go("mgo",async function(){var code=keep.code,id=q("ms").value,pw=q("mpn").value.trim();keep.mid=id;
     if(!(await codeOk(code))){err="Incorrect society code.";render();return}
     var d=dirList.find(function(x){return x.id===id});if(!d){err="Choose your name.";render();return}
-    try{await GF.signIn(d.email,pw);meId=id;enter(false);err="";keep.code="";keep.mid="";if(pw===DEFAULT_PW){forceChg=true;mview="chpw"}}catch(e){err=authMsg(e,"password")}render()});
+    try{await GF.signIn(d.email,pw);meId=id;enter(false);err="";keep.code="";keep.mid="";mStep=0;stopDir();if(pw===DEFAULT_PW){forceChg=true;mview="chpw"}}catch(e){err=authMsg(e,"password")}render()});
   go("ago",async function(){var code=q("sc2").value,uidIn=q("au").value.trim(),pw=q("ap").value;keep.code=code;keep.user=uidIn;
     if(!(await codeOk(code))){err="Incorrect society code.";render();return}
     if(!uidIn){err="Enter your user ID.";render();return}
@@ -648,7 +682,7 @@ function bindGate(){
     try{var u=await GF.signInRaw(email,six?pw+"#gf":pw);
       var ok=(u.user.email||"").toLowerCase()===GF.admin.toLowerCase()||await GF.isAdminDoc(u.user.uid);
       if(!ok){await GF.signOut();err="This user ID is not an administrator."}
-      else{enter(true);err="";keep.code=""}}
+      else{enter(true);err="";keep.code="";setTimeout(function(){logAct("Administrator logged in","")},1500)}}
     catch(e){err=authMsg(e,"user ID or password")}render()});
   go("unlock",async function(){var b=bioGet().member;
     try{await bioCheck(b.cid);meId=b.memberId;enter(false);err=""}catch(e){err="Fingerprint / face check failed or was cancelled."}render()});
@@ -667,6 +701,12 @@ function bind(){
   go("xl",function(){tab="sheet";render();window.scrollTo(0,0)});go("xb",function(){tab="home";render()});
   var xs=$("xsel");if(xs)xs.onchange=function(){sheetMon=xs.value;render()};
   go("abk",function(){if(tab==="home"){doLogout();return}tab=TABON[tab]||"home";render();window.scrollTo(0,0)});
+  go("gaud",function(){tab="audit";render();window.scrollTo(0,0)});
+  go("gbk1",function(){saveFile("NHSECCS-backup-"+new Date().toISOString().slice(0,10)+".json",JSON.stringify(backupData(),null,2),"application/json",false);logAct("Backup downloaded","JSON file");toast("Backup downloaded.",true)});
+  go("gbk2",async function(){try{await loadSheetJS();var wb=XLSX.utils.book_new(),bd=backupData();
+    [["Members",bd.members],["Monthly",bd.monthly],["Applications",bd.applications],["Disbursements",bd.disbursements],["LTL list",bd.ltlList],["Administrators",bd.administrators],["Activity log",bd.activityLog]].forEach(function(pr){XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((pr[1]||[]).map(flatRow)),pr[0])});
+    XLSX.writeFile(wb,"NHSECCS-backup-"+new Date().toISOString().slice(0,10)+".xlsx");logAct("Backup downloaded","Excel file");toast("Backup downloaded.",true)}
+    catch(e){toast("Could not make the Excel file. Use the JSON backup instead.",false,6000)}});
   go("gadd",function(){tab="addadm";render();window.scrollTo(0,0)});
   go("gchg",function(){tab="chgadm";render();window.scrollTo(0,0)});
   /* members */
@@ -674,45 +714,48 @@ function bind(){
     if(!n){toast("Enter the name of the member.");return}
     if(members.length>=50){toast("The society is limited to 50 members.");return}
     var id=uid(),em=id+"@member.groupfund.app";
-    try{var au=await GF.createUser(em,DEFAULT_PW);
-      await save("members",id,{name:n.toUpperCase(),regNo:rg,nominee:nmn,relation:rl,authUid:au,email:em});
+    var pw0=genPw();
+    try{var au=await GF.createUser(em,pw0);
+      await save("members",id,{name:n.toUpperCase(),regNo:rg,nominee:nmn,relation:rl,authUid:au,email:em,mustChange:true});
       await save("directory",id,{name:n.toUpperCase(),email:em});
-      toast("Member added with the default password.",true)}catch(e){toast("Could not add member: "+(e&&e.message||e))}});
+      newCred={name:n.toUpperCase(),pw:pw0};logAct("Member added",n.toUpperCase());
+      toast("Member added. Give the password shown on the screen to the member.",true,6000);render();window.scrollTo(0,0)}catch(e){toast("Could not add member: "+(e&&e.message||e))}});
   document.querySelectorAll("[data-ed]").forEach(function(b){b.onclick=function(){editId=b.dataset.ed;render();window.scrollTo(0,0)}});
   document.querySelectorAll("[data-dm]").forEach(function(b){b.onclick=function(){del("members",b.dataset.dm)}});
   go("ecan",function(){editId=null;render()});
+  go("credcopy",function(){if(newCred)copyText(credMsg(newCred))});go("creddone",function(){newCred=null;render()});
   go("esave",async function(){var id=editId,m=members.find(function(x){return x.id===id}),nm=$("e_name").value.trim().toUpperCase();
     if(!m)return;if(!nm){toast("Name is required.");return}
-    try{var o=Object.assign({},m);delete o.id;o.name=nm;o.regNo=$("e_reg").value.trim();o.nominee=$("e_nom").value.trim();o.relation=$("e_rel").value;await save("members",id,o);await db.collection("directory").doc(id).set({name:nm,email:o.email});editId=null;render();toast("Saved.",true)}
+    try{var o=Object.assign({},m);delete o.id;o.name=nm;o.regNo=$("e_reg").value.trim();o.nominee=$("e_nom").value.trim();o.relation=$("e_rel").value;await save("members",id,o);await db.collection("directory").doc(id).set({name:nm,email:o.email});logAct("Member edited",nm);editId=null;render();toast("Saved.",true)}
     catch(e){toast("Could not save: "+(e&&e.message||e))}});
-  go("erst",async function(){var id=editId,m=members.find(function(x){return x.id===id});if(!m)return;
-    try{var ne=id+"."+Date.now().toString(36)+"@member.groupfund.app",au=await GF.createUser(ne,DEFAULT_PW);
-      var o=Object.assign({},m);delete o.id;o.authUid=au;o.email=ne;await save("members",id,o);
+  go("erst",async function(){var id=editId,m=members.find(function(x){return x.id===id});if(!m)return;var pw1=genPw();
+    try{var ne=id+"."+Date.now().toString(36)+"@member.groupfund.app",au=await GF.createUser(ne,pw1);
+      var o=Object.assign({},m);delete o.id;o.authUid=au;o.email=ne;o.mustChange=true;await save("members",id,o);
       await db.collection("directory").doc(id).set({name:m.name,email:ne});
       monthly.filter(function(x){return x.memberId===id}).forEach(function(x){db.collection("monthly").doc(x.id).update({ownerUid:au})});
       apps.filter(function(x){return x.memberId===id}).forEach(function(x){db.collection("applications").doc(x.id).update({ownerUid:au})});
-      editId=null;render();toast("Password reset to the default password.",true,6000)}
+      editId=null;newCred={name:m.name,pw:pw1};logAct("Member password reset",m.name);render();window.scrollTo(0,0);toast("New password created. Give it to the member.",true,6000)}
     catch(e){toast("Could not reset: "+(e&&e.message||e))}});
   /* ledger */
   go("lsave",function(){var g=function(i){return parseFloat($(i).value)||0};
-    writeRules({tfRate:g("l_tf"),gfRate:g("l_gf"),cvValue:g("l_cv"),dividendValue:g("l_dv")}).then(function(){toast("Saved.",true)},function(){toast("Could not save.")})});
+    writeRules({tfRate:g("l_tf"),gfRate:g("l_gf"),cvValue:g("l_cv"),dividendValue:g("l_dv")}).then(function(){logAct("Dividend settings saved","TF "+g("l_tf")+"%, GF "+g("l_gf")+"%, circulating share value "+g("l_cv")+", dividend "+g("l_dv"));toast("Saved.",true)},function(){toast("Could not save.")})});
   /* applications and LTL list */
   document.querySelectorAll("[data-ap]").forEach(function(b){b.onclick=async function(){
     var a=apps.find(function(x){return x.id===b.dataset.ap});if(!a)return;
     try{await db.collection("applications").doc(a.id).update({status:"Approved"});
       if((a.type||"LTL")==="LTL"&&!ltlList.some(function(x){return x.memberId===a.memberId}))
         await db.collection("ltl").doc(uid()).set({memberId:a.memberId,name:a.memberName,date:new Date().toISOString().slice(0,10),auto:true});
-      toast("Approved.",true)}catch(e){toast("Could not approve.")}}});
-  document.querySelectorAll("[data-rj]").forEach(function(b){b.onclick=function(){db.collection("applications").doc(b.dataset.rj).update({status:"Rejected"}).then(function(){toast("Rejected.",true)},function(){toast("Could not save.")})}});
-  go("rsave",function(){writeRules({text:$("rt").value}).then(function(){toast("Rules saved.",true)},function(){toast("Could not save.")})});
+      logAct("Application approved",a.memberName+" · "+(a.type||"LTL")+" · "+a.amount);toast("Approved.",true)}catch(e){toast("Could not approve.")}}});
+  document.querySelectorAll("[data-rj]").forEach(function(b){b.onclick=function(){db.collection("applications").doc(b.dataset.rj).update({status:"Rejected"}).then(function(){var r2=apps.find(function(x){return x.id===b.dataset.rj})||{};logAct("Application rejected",(r2.memberName||"")+" · "+(r2.type||"LTL")+" · "+(r2.amount||""));toast("Rejected.",true)},function(){toast("Could not save.")})}});
+  go("rsave",function(){writeRules({text:$("rt").value}).then(function(){logAct("Rules text saved","");toast("Rules saved.",true)},function(){toast("Could not save.")})});
   go("gltl",function(){tab="ltl";render();window.scrollTo(0,0)});
   go("gms",function(){tab="msheet";render();window.scrollTo(0,0)});
   var msel=$("msel");if(msel)msel.onchange=function(){msSel=msel.value;render()};
   var msfy=$("msfy");if(msfy)msfy.onchange=function(){msFy=+msfy.value;render()};
-  go("xprint",doPrint);go("xdl",function(){doDownload(tab==="msheet"?"NHSECCS-"+((members.find(function(x){return x.id===msSel})||{}).name||"member").replace(/\s+/g,"-"):"NHSECCS-Excel-sheet")});
+  go("xprint",doPrint);go("xdl",function(){doDownload(tab==="msheet"?"NHSECCS-"+((members.find(function(x){return x.id===msSel})||{}).name||"member").replace(/\s+/g,"-"):(tab==="audit"?"NHSECCS-Activity-log":"NHSECCS-Excel-sheet"))});
   go("edtog",function(){editMode=!editMode;render()});
   go("ltadd",async function(){var n=$("ltn").value.trim();if(!n){toast("Write the name of the member.");return}
-    try{await db.collection("ltl").doc(uid()).set({name:n.toUpperCase(),date:new Date().toISOString().slice(0,10),auto:false});toast("Name added.",true)}catch(e){toast("Could not save.")}});
+    try{await db.collection("ltl").doc(uid()).set({name:n.toUpperCase(),date:new Date().toISOString().slice(0,10),auto:false});logAct("LTL name added",n.toUpperCase());toast("Name added.",true)}catch(e){toast("Could not save.")}});
   document.querySelectorAll("[data-ld]").forEach(function(b){b.onclick=function(){del("ltl",b.dataset.ld)}});
   /* details */
   if($("d_ltl")){
@@ -731,7 +774,7 @@ function bind(){
     var doc=Object.assign({},docsOf(id)[mon2]||{});delete doc.id;doc.memberId=id;doc.month=mon2;doc.ownerUid=m.authUid;
     carry.forEach(function(c){if(c.v!==c.e||doc[c.k]!==undefined)doc[c.k]=c.v});
     ds.disabled=true;
-    try{await db.collection("monthly").doc(id+"_"+mon2).set(doc);await db.collection("members").doc(id).set(o);if(m.email)await db.collection("directory").doc(id).set({name:nm,email:m.email});toast("Saved.",true)}
+    try{await db.collection("monthly").doc(id+"_"+mon2).set(doc);await db.collection("members").doc(id).set(o);if(m.email)await db.collection("directory").doc(id).set({name:nm,email:m.email});logAct("Details saved",nm+" · "+mon2);toast("Saved.",true)}
     catch(e){toast("Could not save: "+(e&&e.message||"permission denied."))}
     ds.disabled=false});
   /* dividend details form */
@@ -744,7 +787,7 @@ function bind(){
     var mon2=fy+"-04",doc=Object.assign({},docsOf(id)[mon2]||{});delete doc.id;doc.memberId=id;doc.month=mon2;doc.ownerUid=m.authUid;
     if(f1.v!==f1.e||doc.openTF!==undefined)doc.openTF=f1.v;if(f2.v!==f2.e||doc.openGF!==undefined)doc.openGF=f2.v;
     var o=Object.assign({},m);delete o.id;o["dv"+fy]=dv;o.dvLast=dv;
-    try{await db.collection("monthly").doc(id+"_"+mon2).set(doc);await db.collection("members").doc(id).set(o);toast("Saved for "+fy+" – "+(fy+1)+".",true)}
+    try{await db.collection("monthly").doc(id+"_"+mon2).set(doc);await db.collection("members").doc(id).set(o);logAct("Dividend details saved",(m?m.name:"")+" · "+fy+" – "+(fy+1));toast("Saved for "+fy+" – "+(fy+1)+".",true)}
     catch(e){toast("Could not save: "+(e&&e.message||e))}});
   /* loan disbursement */
   var dbm=$("dbm");if(dbm)dbm.onchange=function(){dbMem=dbm.value};
@@ -763,7 +806,7 @@ function bind(){
       var ch=[{memberId:id,month:mon2,type:type,delta:ins}];
       if(old)ch.push({memberId:old.memberId,month:old.month,type:old.type,delta:-(+old.instalment||0)});
       await applyDisbChanges(ch);
-      var was=!!old;dbEdit="";dbMon=mon2;
+      var was=!!old;dbEdit="";dbMon=mon2;logAct(was?"Loan record updated":"Loan disbursed",m.name+" · "+type+" · "+ins+" · "+mon2);
       toast(was?"Record updated. LTL / STL of the month is corrected.":"Saved. The instalment is added to "+(type==="LTL"?"LTL":"STL")+" this month.",true,5000);render()}
     catch(e){toast("Could not save: "+(e&&e.message||e))}});
   document.querySelectorAll("[data-de]").forEach(function(b){b.onclick=function(){var r=disb.find(function(x){return x.id===b.dataset.de});if(!r)return;dbEdit=r.id;dbMon=r.month;dbMem=r.memberId;render();window.scrollTo(0,0)}});
@@ -772,7 +815,7 @@ function bind(){
     var id=b.dataset.dd,r=disb.find(function(x){return x.id===id});if(!r)return;
     if(pend!=="disb"+id){pend="disb"+id;toast("Tap delete again to remove this record. Its instalment is taken back from LTL / STL.");setTimeout(function(){pend=null},4500);return}
     pend=null;
-    try{await applyDisbChanges([{memberId:r.memberId,month:r.month,type:r.type,delta:-(+r.instalment||0)}]);await db.collection("disb").doc(id).delete();toast("Record deleted.",true)}
+    try{await applyDisbChanges([{memberId:r.memberId,month:r.month,type:r.type,delta:-(+r.instalment||0)}]);await db.collection("disb").doc(id).delete();logAct("Loan record deleted",r.memberName+" · "+r.type+" · "+r.instalment+" · "+r.month);toast("Record deleted.",true)}
     catch(e){toast("Could not delete.")}}});
   /* administrators */
   go("aasave",async function(){var code=$("aa_code").value,nm=$("aa_name").value.trim(),pw=$("aa_pw").value,id=$("aa_id").value.trim();
@@ -783,7 +826,7 @@ function bind(){
     if(adminList.length>=3){toast("You already have 3 administrators.");return}
     if(adminList.some(function(a){return a.userId===id})){toast("This user ID is already used.");return}
     var email=id+"@admin.nhseccs.app";
-    try{var au=await GF.createUser(email,pw);await db.collection("admins").doc(au).set({name:nm.toUpperCase(),userId:id,email:email,addedBy:GF.auth.currentUser.email||""});toast("Administrator added.",true);tab="home";render()}
+    try{var au=await GF.createUser(email,pw);await db.collection("admins").doc(au).set({name:nm.toUpperCase(),userId:id,email:email,addedBy:GF.auth.currentUser.email||""});logAct("Administrator added",nm.toUpperCase()+" ("+id+")");toast("Administrator added.",true);tab="home";render()}
     catch(e){toast((e&&e.code==="auth/email-already-in-use")?"This user ID is already used.":"Could not add: "+(e&&e.message||e),false,6000)}});
   go("cachg",async function(){var code=$("ca_code").value,myId=$("ca_uid").value.trim(),myPw=$("ca_pw").value,old=$("ca_old").value,nm=$("ca_name").value.trim(),pw=$("ca_pw2").value,id=$("ca_id").value.trim();
     if(!(await codeOk(code))){toast("Incorrect society code.");return}
@@ -796,14 +839,14 @@ function bind(){
     if(!/^\d{6}$/.test(id)){toast("The new user ID must be exactly 6 digits.");return}
     if(adminList.some(function(a){return a.userId===id&&a.id!==old})){toast("This user ID is already used.");return}
     var email=id+"@admin.nhseccs.app";
-    try{var au=await GF.createUser(email,pw);await db.collection("admins").doc(au).set({name:nm.toUpperCase(),userId:id,email:email,addedBy:GF.auth.currentUser.email||""});await db.collection("admins").doc(old).delete();toast("Administrator changed.",true);tab="home";render()}
+    try{var au=await GF.createUser(email,pw);await db.collection("admins").doc(au).set({name:nm.toUpperCase(),userId:id,email:email,addedBy:GF.auth.currentUser.email||""});await db.collection("admins").doc(old).delete();logAct("Administrator changed","Replaced one administrator with "+nm.toUpperCase()+" ("+id+")");toast("Administrator changed.",true);tab="home";render()}
     catch(e){toast((e&&e.code==="auth/email-already-in-use")?"This user ID is already used.":"Could not change: "+(e&&e.message||e),false,6000)}});
 }
 function startData(role){
   unsubs.forEach(function(u){try{u()}catch(e){}});unsubs=[];
   var er=function(){toast("Cannot read data. Check the Firestore rules.")};
   var live=function(){return stage==="admin"||stage==="member"};
-  unsubs.push(GF.watch("members","authUid",role,function(q){members=toList(q).map(function(m){m.name=(m.name||"").toUpperCase();return m});if(role==="member"&&!meId&&members[0])meId=members[0].id;if(role==="admin")syncShare();if(live())render()},er));
+  unsubs.push(GF.watch("members","authUid",role,function(q){members=toList(q).map(function(m){m.name=(m.name||"").toUpperCase();return m});if(role==="member"&&!meId&&members[0])meId=members[0].id;if(role==="member"&&!chgChecked&&meId){var mm0=members.find(function(x){return x.id===meId});if(mm0){chgChecked=true;if(mm0.mustChange===true){forceChg=true;mview="chpw"}}}if(role==="admin")syncShare();if(live())render()},er));
   unsubs.push(GF.watch("monthly","ownerUid",role,function(q){monthly=toList(q);if(role==="admin")syncShare();if(live())render()},er));
   unsubs.push(GF.watch("applications","ownerUid",role,function(q){apps=toList(q);if(live())render()},er));
   unsubs.push(GF.watchDoc("config","rules",function(d){var x=d.exists()?d.data():{};rulesText=x.text||"";divRates={tf:+x.tfRate||0,gf:+x.gfRate||0,sh:0,cv:+x.cvValue||0,ts:+x.totalShare||0,dv:+x.dividendValue||0};rulesLoaded=true;if(role==="admin")syncShare();if(live())render()},function(){}));
@@ -811,13 +854,14 @@ function startData(role){
     unsubs.push(GF.watch("disb",null,"admin",function(q){disb=toList(q);if(live())render()},er));
     unsubs.push(GF.watch("ltl",null,"admin",function(q){ltlList=toList(q);if(live())render()},er));
     unsubs.push(GF.watch("admins",null,"admin",function(q){adminList=toList(q);if(live())render()},er));
+    unsubs.push(GF.watchLog("audit",200,function(q){auditList=toList(q);if(live())render()},function(){}));
   }
 }
-function enter(isA){isAdmin=isA;canWrite=isA;sessionUser=GF.auth.currentUser;startData(isA?"admin":"member");stage=isA?"admin":"member";tab="home";mview="home"}
+function enter(isA){chgChecked=false;isAdmin=isA;canWrite=isA;sessionUser=GF.auth.currentUser;startData(isA?"admin":"member");stage=isA?"admin":"member";tab="home";mview="home"}
 function doLogout(){
   unsubs.forEach(function(u){try{u()}catch(e){}});unsubs=[];
   try{GF.signOut()}catch(e){}
-  members=[];monthly=[];apps=[];disb=[];ltlList=[];adminList=[];meId=null;isAdmin=false;canWrite=false;sessionUser=null;rulesLoaded=false;forceChg=false;mview="home";tab="home";err="";
+  members=[];monthly=[];apps=[];disb=[];ltlList=[];adminList=[];meId=null;isAdmin=false;canWrite=false;sessionUser=null;rulesLoaded=false;forceChg=false;chgChecked=false;auditList=[];newCred=null;stopDir();mStep=0;mview="home";tab="home";err="";
   stage="choose";render()}
 function boot(){
   if(!authChecked||stage!=="loading")return;
@@ -826,7 +870,6 @@ function boot(){
   render()}
 (function(){
   if(!GF.configured){stage="nodb";render();return}
-  GF.watch("directory",null,"x",function(q){dirList=toList(q);if(stage==="mlogin")render()},function(e){lastErr=(e&&(e.code||e.message))||"unknown error";stage="nodb";render()});
   GF.onAuth(function(u){if(!authChecked){authChecked=true;sessionUser=u;boot()}});
   db=GF.db;render();
 })();
@@ -836,7 +879,7 @@ if(window.GF)gfStart();else window.addEventListener("gf-ready",gfStart);
 </script>
 <script type="module">
 import {initializeApp} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-import {getFirestore,collection,doc,getDoc,setDoc,updateDoc,deleteDoc,onSnapshot,query,where} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import {getFirestore,collection,doc,getDoc,setDoc,updateDoc,deleteDoc,onSnapshot,query,where,orderBy,limit} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 import {initializeAuth,getAuth,signInWithEmailAndPassword,createUserWithEmailAndPassword,signOut,onAuthStateChanged,setPersistence,inMemoryPersistence,browserLocalPersistence,EmailAuthProvider,reauthenticateWithCredential,updatePassword} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 
 /* ===== 1. PASTE YOUR FIREBASE SETTINGS HERE (see SETUP.md) ===== */
@@ -881,6 +924,7 @@ window.GF={
     const u=auth.currentUser&&auth.currentUser.uid;
     const q=(role==="admin"||!field)?collection(F,c):query(collection(F,c),where(field,"==",u));
     return onSnapshot(q,ok,er)},
+  watchLog:(c,n,ok,er)=>onSnapshot(query(collection(F,c),orderBy("t","desc"),limit(n)),ok,er),
   watchDoc:(c,i,ok,er)=>onSnapshot(doc(F,c,i),ok,er)
 };
 window.dispatchEvent(new Event("gf-ready"));
