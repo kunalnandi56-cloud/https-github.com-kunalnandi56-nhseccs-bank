@@ -199,6 +199,7 @@ input:disabled,select:disabled,textarea:disabled{opacity:.72;background:var(--ti
 #gbk1,#credcopy{--c1:#D8F4E6;--c2:#B6E8D0;--e:#6DB896}
 #gbk2{--c1:#DCEBFA;--c2:#B9D6F3;--e:#78A5D0}
 #creddone{--c1:#FDE3D2;--c2:#F8C8A8;--e:#D39772}
+#bcalc{--c1:#FBF4C4;--c2:#F1E48F;--e:#BDAE45}
 </style>
 </head>
 <body>
@@ -350,7 +351,7 @@ function auditView(){
   var h=topRow()+'<div class="card"><h2>Activity log</h2><div class="sub">Every change made by an administrator. The newest 200 entries are shown. Entries cannot be edited or deleted.</div></div>';
   var rows=auditList.map(function(x){var d=new Date(x.t),when=isNaN(d)?esc(x.t):d.toLocaleString();return '<tr><td class="n">'+when+'</td><td>'+esc(x.by)+'</td><td>'+esc(x.action)+'</td><td style="white-space:normal;text-align:left">'+esc(x.detail)+'</td></tr>'}).join("");
   return h+'<div class="card pa"><div class="xw"><table class="xt"><tr><th>Date and time</th><th>Administrator</th><th>Action</th><th>Details</th></tr>'+(rows||'<tr><td colspan="4" style="text-align:center">No activity recorded yet.</td></tr>')+'</table></div></div><button class="mb" id="xprint">Print</button><button class="mb" id="xdl">Download</button>'}
-var APPVER="Version 9";
+var APPVER="Version 10";
 var LOANS=["LTL","STL (Medical)","STL (Other)"];
 var STAGES=["Complete","1st installment","2nd installment","3rd installment","4th installment","5th installment"];
 var TABS=[["home","Summary"],["mem","Members"],["det","Details"],["led","Ledger"],["apps","Apps"],["disb","Loan disbursement"]];
@@ -599,6 +600,30 @@ function dividendView(m,back){
   var info='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">'+B("Opening of Thrift Fund",open0[0])+B("Rate of Interest (TF %)",rTF)+B("Opening of Guaranty Fund",open0[1])+B("Rate of Interest (GF %)",rGF)+B("Closing Share",cs)+B("Circulating Share Value",divRates.cv)+'</div>';
   return '<div class="card"><h2>Dividend</h2><div><b>'+esc(m.name)+'</b></div><div class="fl" style="margin-top:10px">Financial year</div><select id="dfy" class="sel">'+fo+'</select></div>'+info+tb+sm+back;
 }
+function calcView(m,back){
+  var now=now0(),chips=[["LTL",effCarry(m,now,"ltlRate",m.ltlRate)],["STL",effCarry(m,now,"stlRate",m.stlRate)],["TF",divRates.tf],["GF",divRates.gf]].filter(function(x){return +x[1]>0}).map(function(x){return '<button class="g" data-rate="'+x[1]+'">'+x[0]+' rate '+x[1]+'%</button>'}).join(" ");
+  return '<div class="card"><h2>Interest calculator</h2><div class="fl">Type</div><select id="cc_type" class="sel"><option value="loan">Loan with monthly instalments</option><option value="simple">Simple interest</option></select>'+
+   '<div class="fl">Amount</div><input id="cc_amt" type="number" inputmode="decimal" step="any" placeholder="Amount">'+
+   '<div class="fl">Interest rate (% per year)</div><input id="cc_rate" type="number" inputmode="decimal" step="any" placeholder="Rate">'+(chips?'<div class="note">Quick fill: '+chips+'</div>':'')+
+   '<div class="fl">Number of months</div><input id="cc_mon" type="number" inputmode="numeric" placeholder="Months"></div>'+
+   '<div id="cc_res"></div>'+back;
+}
+function calcUpdate(){
+  var amt=parseFloat($("cc_amt").value)||0,rate=parseFloat($("cc_rate").value)||0,mon=parseInt($("cc_mon").value)||0,type=$("cc_type").value,o=$("cc_res");
+  if(!(amt>0)||!(rate>=0)||!(mon>0)||mon>360){o.innerHTML='<div class="card"><div class="sub">Enter the amount, the yearly rate and the number of months (1 to 360). The answer appears here.</div></div>';return}
+  var R=function(l,v){return '<div class="tile"><span class="k">'+l+'</span><span class="tv">'+v+'</span></div>'};
+  if(type==="simple"){
+    var si=Math.round(amt*rate*mon/1200);
+    o.innerHTML='<div class="tgrid">'+R("Interest",fmt(si))+R("Total amount",fmt(amt+si))+'</div><div class="note">Interest = amount × rate × months ÷ 12 ÷ 100, rounded to the rupee.</div><br>';return}
+  var bal=amt,tI=0,rows="",pr=Math.round(amt/mon),first=0;
+  for(var k=1;k<=mon;k++){
+    var p=(k===mon)?bal:Math.min(pr,bal),i=Math.round(bal*rate/1200),cl=bal-p;
+    if(k===1)first=i;tI+=i;
+    rows+='<tr><td class="n">'+k+'</td><td>'+bal.toLocaleString()+'</td><td>'+p.toLocaleString()+'</td><td>'+i.toLocaleString()+'</td><td class="tt">'+(p+i).toLocaleString()+'</td><td>'+cl.toLocaleString()+'</td></tr>';
+    bal=cl}
+  o.innerHTML='<div class="tgrid">'+R("Monthly principal",fmt(pr))+R("Interest in the first month",fmt(first))+R("Total interest",fmt(tI))+R("Total to pay (amount + interest)",fmt(amt+tI))+'</div><br>'+
+   '<div class="xw"><table class="xt"><tr><th>Month</th><th>Opening balance</th><th>Principal</th><th>Interest</th><th>Instalment</th><th>Closing balance</th></tr>'+rows+'</table></div>'+
+   '<div class="note">Each month the interest is the balance × rate ÷ 12 ÷ 100, rounded to the rupee. The principal is paid in equal monthly parts.</div><br>'}
 function appRows(mine){
   if(!mine.length)return '<div class="sub">No applications yet.</div>';
   return mine.map(function(x){return '<div class="row"><div><div>'+fmt(x.amount)+' · '+esc(x.type||"LTL")+' · '+esc(x.months)+' months</div><div class="sub">'+esc(x.date)+' · '+esc(x.purpose)+'</div></div><span class="badge '+(x.status==="Approved"?"paid":x.status==="Rejected"?"due":"")+'">'+(x.status==="Approved"?"✔ Approved":esc(x.status))+'</span></div>'}).join("")}
@@ -618,6 +643,7 @@ if(mview==="sheet"){
   if(mview==="dividend")return bar+dividendView(m,back);
   if(mview==="rules")return bar+'<div class="card"><h2>Rules and Regulations</h2><div style="white-space:pre-wrap">'+(rulesText?esc(rulesText):'<span class="sub">Rules have not been published yet.</span>')+'</div><br>'+back+'</div>';
   
+  if(mview==="calc")return bar+calcView(m,back);
   if(mview==="apply")return bar+'<div class="card"><h2>Application</h2><div class="fl">Type of loan</div><select id="at" class="sel"><option value="">Type of loan</option>'+LOANS.map(function(x){return '<option>'+x+'</option>'}).join("")+'</select><input id="aa" type="number" inputmode="decimal" placeholder="Amount requested"><input id="am" type="number" inputmode="numeric" placeholder="Repayment period (months)"><input id="ap2" placeholder="Purpose"><button class="mb b-mint" id="asub">Submit application</button><h2 style="font-size:20px;margin-top:8px">Your applications</h2>'+appRows(mine)+'<br>'+back+'</div>';
   if(mview==="list")return bar+'<div class="card"><h2>LTL Application list</h2>'+appRows(mine)+'<br>'+back+'</div>';
   if(mview==="chpw")return bar+'<div class="card"><h2>Change password</h2>'+(forceChg?'<div class="note" style="color:var(--bad);font-weight:600">Please change the default password before you continue.</div>':'')+'<div class="fl">Current password</div><input class="pw" id="cp_cur" type="password" autocomplete="off"><div class="fl">New password</div><input class="pw" id="cp_new" type="password" autocomplete="new-password"><div class="fl">Again new password</div><input class="pw" id="cp_new2" type="password" autocomplete="new-password"><div class="note">'+PWMSG+'</div><button class="g" id="shw2">Show / hide</button><button class="mb b-gold" id="cpsave">Save new password</button>'+back+'</div>';
@@ -632,7 +658,7 @@ if(mview==="sheet"){
   var bioOn=!!(bioGet().member&&bioGet().member.memberId===meId);
   return bar+notice+detCard+'<div class="card"><h2>Year and month</h2><div class="sub">'+esc(m.name)+'</div><br><div class="grid"><div><div class="k">Year</div><select id="fy" class="sel">'+fo+'</select></div><div><div class="k">Month</div><select id="fm" class="sel">'+mo+'</select></div></div>'+
   '<button class="mb b-gold" id="chg">Change month</button>'+
-  '<button class="mb b-gold" id="bxl">Open Excel sheet</button><button class="mb b-rule" id="brules">Rules and Regulations</button><button class="mb b-mint" id="bapp">Application</button><button class="mb b-mint" id="blist">LTL Application list</button><button class="mb b-mint" id="bdiv">Dividend</button><button class="mb b-mint" id="bcp">Change password</button><button class="mb b-mint" id="bbio">'+(bioOn?"Turn off biometric":"Enable biometric")+'</button><button class="mb b-peach" id="bout">← Back</button></div>';
+  '<button class="mb b-gold" id="bxl">Open Excel sheet</button><button class="mb b-rule" id="brules">Rules and Regulations</button><button class="mb b-mint" id="bapp">Application</button><button class="mb b-mint" id="blist">LTL Application list</button><button class="mb b-mint" id="bdiv">Dividend</button><button class="mb b-mint" id="bcalc">Interest calculator</button><button class="mb b-mint" id="bcp">Change password</button><button class="mb b-mint" id="bbio">'+(bioOn?"Turn off biometric":"Enable biometric")+'</button><button class="mb b-peach" id="bout">← Back</button></div>';
 }
 function m0name(){var m=members.find(function(x){return x.id===meId});return m?m.name:"Member"}
 function bindMember(){
@@ -643,6 +669,9 @@ function bindMember(){
   go("bapp",function(){mview="apply";render()});go("blist",function(){mview="list";render()});
   go("bdiv",function(){dvFy=selFy||fyOf(month);mview="dividend";render();window.scrollTo(0,0)});
   go("bcp",function(){mview="chpw";render()});
+  go("bcalc",function(){mview="calc";render();window.scrollTo(0,0)});
+  if($("cc_amt")){var cu=function(){calcUpdate()};["cc_amt","cc_rate","cc_mon"].forEach(function(i){$(i).oninput=cu});$("cc_type").onchange=cu;
+    document.querySelectorAll("[data-rate]").forEach(function(b){b.onclick=function(){$("cc_rate").value=b.dataset.rate;calcUpdate()}});calcUpdate()}
   go("inst",doInstall);go("shw2",togglePw);go("xprint",doPrint);go("xdl",function(){doDownload("NHSECCS-"+m0name().replace(/\s+/g,"-"))});
   var dfy=$("dfy");if(dfy)dfy.onchange=function(){dvFy=+dfy.value;render()};
   var fy=$("fy");if(fy)fy.onchange=function(){selFy=+fy.value;selMo=+$("fm").value;render()};
