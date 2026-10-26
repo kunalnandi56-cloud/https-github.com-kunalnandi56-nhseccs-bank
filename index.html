@@ -200,6 +200,8 @@ input:disabled,select:disabled,textarea:disabled{opacity:.72;background:var(--ti
 #gbk2{--c1:#DCEBFA;--c2:#B9D6F3;--e:#78A5D0}
 #creddone{--c1:#FDE3D2;--c2:#F8C8A8;--e:#D39772}
 #bcalc{--c1:#FBF4C4;--c2:#F1E48F;--e:#BDAE45}
+#grest{--c1:#FADCE6;--c2:#F4BDD0;--e:#C9809A}
+#rgo{--c1:#FADCE6;--c2:#F4BDD0;--e:#C9809A}
 </style>
 </head>
 <body>
@@ -215,7 +217,7 @@ if("serviceWorker" in navigator&&location.protocol.indexOf("http")===0)window.ad
 window.__ie=null;window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();window.__ie=e});
 function gfStart(){
 (function(){
-var CUR="₹",dvAdmFy=0,dvFy=0,dbMon=new Date().toISOString().slice(0,7),dbMem="",divRates={tf:0,gf:0,sh:0,cv:0,ts:0,dv:0},keep={code:"",user:"",mid:""},dirList=[],sessionUser=null,unsubs=[],authChecked=false,members=[],monthly=[],apps=[],disb=[],ltlList=[],adminList=[],rulesLoaded=false,forceChg=false,tab="home",db=null,canWrite=false,stage="loading",mview="home",editId=null,detId=null,rulesText="",selFy=0,selMo=0,installEv=null,isAdmin=false,meId=null,err="",lastErr="",editMode=false,msSel="",msFy=0,dbEdit="",auditList=[],newCred=null,mStep=0,dirUnsub=null,chgChecked=false;
+var CUR="₹",dvAdmFy=0,dvFy=0,dbMon=new Date().toISOString().slice(0,7),dbMem="",divRates={tf:0,gf:0,sh:0,cv:0,ts:0,dv:0},keep={code:"",user:"",mid:""},dirList=[],sessionUser=null,unsubs=[],authChecked=false,members=[],monthly=[],apps=[],disb=[],ltlList=[],adminList=[],rulesLoaded=false,forceChg=false,tab="home",db=null,canWrite=false,stage="loading",mview="home",editId=null,detId=null,rulesText="",selFy=0,selMo=0,installEv=null,isAdmin=false,meId=null,err="",lastErr="",editMode=false,msSel="",msFy=0,dbEdit="",restoreData=null,restoreMsg="",restoreBusy=false,auditList=[],newCred=null,mStep=0,dirUnsub=null,chgChecked=false;
 var month=new Date().toISOString().slice(0,7);
 var MN=["January","February","March","April","May","June","July","August","September","October","November","December"];
 function fyOf(mo){var y=+mo.slice(0,4),m=+mo.slice(5,7);return m>=4?y:y-1}
@@ -347,11 +349,50 @@ function flatRow(o){var r={};Object.keys(o).forEach(function(k){var v=o[k];r[k]=
 function backupData(){return {exportedAt:new Date().toISOString(),exportedBy:adminWho(),members:members,monthly:monthly,applications:apps,disbursements:disb,ltlList:ltlList,administrators:adminList,settings:{rulesText:rulesText,dividend:divRates},activityLog:auditList}}
 function startDir(){if(dirUnsub)return;dirUnsub=GF.watch("directory",null,"x",function(q){dirList=toList(q);if(stage==="mlogin")render()},function(e){lastErr=(e&&(e.code||e.message))||"error";err="Cannot read the member names ("+lastErr+"). Check your internet and the Firestore rules.";if(stage==="mlogin")render()})}
 function stopDir(){if(dirUnsub){try{dirUnsub()}catch(e){}dirUnsub=null}dirList=[]}
+function restoreView(){
+  var h=topRow()+'<div class="card"><h2>Restore from backup</h2><div class="sub">Choose a JSON file made with <b>Backup (JSON file)</b>. Nothing changes until you confirm.</div><br><input id="rf" type="file" accept=".json,application/json"></div>';
+  if(restoreMsg)h+='<div class="card"><div style="font-weight:600">'+esc(restoreMsg)+'</div></div>';
+  if(restoreData){
+    var d=restoreData,n=function(a){return Array.isArray(a)?a.length:0};
+    var R=function(l,a,b){return '<div class="tile"><span class="k">'+l+'</span><span class="tv">'+a+' <span class="sub">(now '+b+')</span></span></div>'};
+    h+='<div class="card"><b>This backup</b><div class="sub">Made on '+esc(new Date(d.exportedAt).toLocaleString())+(d.exportedBy?' by '+esc(d.exportedBy):'')+'</div><br><div class="tgrid">'+
+      R("Members",n(d.members),members.length)+R("Monthly records",n(d.monthly),monthly.length)+R("Loan records",n(d.disbursements),disb.length)+R("Applications",n(d.applications),apps.length)+R("LTL list names",n(d.ltlList),ltlList.length)+'</div>'+
+      '<div class="note">Passwords are never in a backup. Members keep their current passwords. Administrators and the activity log are not changed.</div>'+
+      '<label style="display:flex;gap:10px;align-items:flex-start;margin:12px 0"><input type="checkbox" id="rx" style="width:auto;min-height:0;margin:3px 0 0"><span>Make the data an exact copy of the backup. Records added after the backup was made will be <b>deleted</b>.</span></label>'+
+      '<div class="fl">Type RESTORE to confirm</div><input id="rc" autocomplete="off" autocapitalize="off"><button class="mb" id="rgo" disabled>'+(restoreBusy?'Restoring…':'Restore now')+'</button></div>'}
+  return h}
+async function doRestore(exact){
+  var d=restoreData;if(!d||restoreBusy)return;
+  restoreBusy=true;restoreMsg="Restoring. Please wait and do not close the page…";render();
+  var out={ok:0,fail:0,del:0},stamp=new Date().toISOString().slice(0,16).replace(/[:T]/g,"-");
+  try{
+    var plan=[["members",d.members],["monthly",d.monthly],["applications",d.applications],["disb",d.disbursements],["ltl",d.ltlList]];
+    var keep={};
+    for(var pi=0;pi<plan.length;pi++){
+      var col=plan[pi][0],list=(plan[pi][1]||[]).filter(function(x){return x&&typeof x.id==="string"&&x.id});
+      keep[col]={};list.forEach(function(x){keep[col][x.id]=1});
+      for(var i=0;i<list.length;i+=15){
+        await Promise.all(list.slice(i,i+15).map(function(item){var o=Object.assign({},item),id=o.id;delete o.id;return db.collection(col).doc(id).set(o).then(function(){out.ok++},function(){out.fail++})}))}}
+    var ml=(d.members||[]).filter(function(x){return x&&x.id&&x.email});
+    for(var j=0;j<ml.length;j+=15){await Promise.all(ml.slice(j,j+15).map(function(x){return db.collection("directory").doc(x.id).set({name:x.name,email:x.email}).then(function(){out.ok++},function(){out.fail++})}))}
+    var st=d.settings;
+    if(st){var dv=st.dividend||{};await db.doc("config/rules").set({text:st.rulesText||"",tfRate:+dv.tf||0,gfRate:+dv.gf||0,cvValue:+dv.cv||0,dividendValue:+dv.dv||0,totalShare:+dv.ts||0}).then(function(){out.ok++},function(){out.fail++})}
+    if(exact){
+      var cur={members:members,monthly:monthly,applications:apps,disb:disb,ltl:ltlList};
+      for(var c in cur){
+        var extra=cur[c].filter(function(x){return !keep[c][x.id]});
+        for(var e=0;e<extra.length;e+=15){await Promise.all(extra.slice(e,e+15).map(function(x){
+          var jobs=[db.collection(c).doc(x.id).delete()];if(c==="members")jobs.push(db.collection("directory").doc(x.id).delete());
+          return Promise.all(jobs).then(function(){out.del++},function(){out.fail++})}))}}}
+    logAct("Restored from backup","Backup of "+d.exportedAt+": "+out.ok+" written, "+out.del+" removed, "+out.fail+" failed");
+    restoreMsg="Restore finished: "+out.ok+" records written, "+out.del+" removed, "+out.fail+" could not be written."+(out.fail?" Records that could not be written were skipped. Check the Firestore rules.":"")+" A copy of your data from before the restore was downloaded."
+  }catch(e){restoreMsg="The restore stopped: "+(e&&e.message||e)+". Some records may have been written. A copy from before the restore was downloaded."}
+  restoreBusy=false;restoreData=null;render()}
 function auditView(){
   var h=topRow()+'<div class="card"><h2>Activity log</h2><div class="sub">Every change made by an administrator. The newest 200 entries are shown. Entries cannot be edited or deleted.</div></div>';
   var rows=auditList.map(function(x){var d=new Date(x.t),when=isNaN(d)?esc(x.t):d.toLocaleString();return '<tr><td class="n">'+when+'</td><td>'+esc(x.by)+'</td><td>'+esc(x.action)+'</td><td style="white-space:normal;text-align:left">'+esc(x.detail)+'</td></tr>'}).join("");
   return h+'<div class="card pa"><div class="xw"><table class="xt"><tr><th>Date and time</th><th>Administrator</th><th>Action</th><th>Details</th></tr>'+(rows||'<tr><td colspan="4" style="text-align:center">No activity recorded yet.</td></tr>')+'</table></div></div><button class="mb" id="xprint">Print</button><button class="mb" id="xdl">Download</button>'}
-var APPVER="Version 10";
+var APPVER="Version 11";
 var LOANS=["LTL","STL (Medical)","STL (Other)"];
 var STAGES=["Complete","1st installment","2nd installment","3rd installment","4th installment","5th installment"];
 var TABS=[["home","Summary"],["mem","Members"],["det","Details"],["led","Ledger"],["apps","Apps"],["disb","Loan disbursement"]];
@@ -461,7 +502,7 @@ function render(){
     b.onclick=function(){tab=x[0];editMode=false;render()};t.appendChild(b)});
   $("note").textContent="";
   var h;
-  if(tab==="home")h=home();else if(tab==="mem")h=memView();else if(tab==="det")h=detailsView();else if(tab==="led")h=ledView();else if(tab==="apps")h=appsView();else if(tab==="ltl")h=ltlView();else if(tab==="disb")h=dispView();else if(tab==="sheet")h=sheetView();else if(tab==="msheet")h=msheetView();else if(tab==="audit")h=auditView();else if(tab==="dvform")h=dvFormView();else if(tab==="addadm")h=addAdmView();else if(tab==="chgadm")h=chgAdmView();else h=home();
+  if(tab==="home")h=home();else if(tab==="mem")h=memView();else if(tab==="det")h=detailsView();else if(tab==="led")h=ledView();else if(tab==="apps")h=appsView();else if(tab==="ltl")h=ltlView();else if(tab==="disb")h=dispView();else if(tab==="sheet")h=sheetView();else if(tab==="msheet")h=msheetView();else if(tab==="audit")h=auditView();else if(tab==="restore")h=restoreView();else if(tab==="dvform")h=dvFormView();else if(tab==="addadm")h=addAdmView();else if(tab==="chgadm")h=chgAdmView();else h=home();
   $("app").innerHTML=h+'<button class="mb b-peach" id="abk">← Back</button>';
   bind();applyLock();
 }
@@ -477,7 +518,7 @@ function home(){
    '<div class="card"><div class="k">Members</div><div class="v">'+members.length+' / 50</div></div></div>';
   if(adminList.length<3)h+='<button class="mb" id="gadd">Add administrator</button>';
   if(adminList.length>0)h+='<button class="mb" id="gchg">Change administrator</button>';
-  return h+'<button class="mb" id="gaud">Activity log</button><button class="mb" id="gbk1">Backup (JSON file)</button><button class="mb" id="gbk2">Backup (Excel)</button><button class="mb" id="ainst">Install app</button><div class="note" style="text-align:center">'+APPVER+'</div>';
+  return h+'<button class="mb" id="gaud">Activity log</button><button class="mb" id="gbk1">Backup (JSON file)</button><button class="mb" id="gbk2">Backup (Excel)</button><button class="mb" id="grest">Restore from backup</button><button class="mb" id="ainst">Install app</button><div class="note" style="text-align:center">'+APPVER+'</div>';
 }
 function F(id,l,v,t){return '<div class="fl">'+l+'</div><input id="'+id+'" '+(t==="t"?'':'type="number" inputmode="decimal" step="any" ')+'value="'+esc(blank(v))+'">'}
 function editCard(){
@@ -741,6 +782,15 @@ function bind(){
   var xs=$("xsel");if(xs)xs.onchange=function(){sheetMon=xs.value;render()};
   go("abk",function(){if(tab==="home"){doLogout();return}tab=TABON[tab]||"home";render();window.scrollTo(0,0)});
   go("gaud",function(){tab="audit";render();window.scrollTo(0,0)});
+  go("grest",function(){restoreData=null;restoreMsg="";tab="restore";render();window.scrollTo(0,0)});
+  var rf=$("rf");if(rf)rf.onchange=function(){var f=rf.files&&rf.files[0];if(!f)return;var fr=new FileReader();
+    fr.onload=function(){try{var d=JSON.parse(fr.result);if(!d||!Array.isArray(d.members)||!Array.isArray(d.monthly)||!d.exportedAt)throw new Error("x");restoreData=d;restoreMsg=""}catch(e){restoreData=null;restoreMsg="This is not a NHSECCS backup file. Choose the JSON file made with Backup (JSON file)."}render()};
+    fr.readAsText(f)};
+  var rc=$("rc");if(rc)rc.oninput=function(){$("rgo").disabled=(rc.value!=="RESTORE"||restoreBusy)};
+  go("rgo",function(){
+    if(!restoreData||$("rc").value!=="RESTORE")return;
+    saveFile("NHSECCS-before-restore-"+new Date().toISOString().slice(0,16).replace(/[:T]/g,"-")+".json",JSON.stringify(backupData(),null,2),"application/json",false);
+    doRestore(!!$("rx").checked)});
   go("gbk1",function(){saveFile("NHSECCS-backup-"+new Date().toISOString().slice(0,10)+".json",JSON.stringify(backupData(),null,2),"application/json",false);logAct("Backup downloaded","JSON file");toast("Backup downloaded.",true)});
   go("gbk2",async function(){try{await loadSheetJS();var wb=XLSX.utils.book_new(),bd=backupData();
     [["Members",bd.members],["Monthly",bd.monthly],["Applications",bd.applications],["Disbursements",bd.disbursements],["LTL list",bd.ltlList],["Administrators",bd.administrators],["Activity log",bd.activityLog]].forEach(function(pr){XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((pr[1]||[]).map(flatRow)),pr[0])});
@@ -970,3 +1020,4 @@ window.dispatchEvent(new Event("gf-ready"));
 </script>
 </body>
 </html>
+
