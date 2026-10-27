@@ -202,6 +202,24 @@ input:disabled,select:disabled,textarea:disabled{opacity:.72;background:var(--ti
 #bcalc{--c1:#FBF4C4;--c2:#F1E48F;--e:#BDAE45}
 #grest{--c1:#FADCE6;--c2:#F4BDD0;--e:#C9809A}
 #rgo{--c1:#FADCE6;--c2:#F4BDD0;--e:#C9809A}
+
+/* v12: more menu buttons, frozen table headings, bigger and bolder digits */
+.tabs button:nth-child(7){--c1:#FBF4C4;--c2:#F1E48F;--e:#BDAE45}
+.tabs button:nth-child(8){--c1:#D3F1F3;--c2:#ADE2E7;--e:#62B0BA}
+.tabs button:nth-child(9){--c1:#E6F4C8;--c2:#CFE8A0;--e:#8DB35A}
+.xw{max-height:68vh;overflow:auto}
+.xt th{position:sticky;top:0;z-index:2}
+.xt td.n{z-index:1}
+.xt th:first-child{left:0;z-index:3}
+.xt td{font-size:15px;font-weight:700}
+.tv{font-size:23px;font-weight:800}
+.v{font-size:34px;font-weight:800}
+.sbtn .sv{font-size:30px;font-weight:800}
+.ti,input[type=number]{font-size:19px;font-weight:700}
+.pill{font-size:17px;font-weight:700}
+.totdiv{font-size:38px;font-weight:800}
+.grid>.card:first-child .v{font-size:44px}
+@media print{.xw{max-height:none!important;overflow:visible!important}.xt th{position:static}}
 </style>
 </head>
 <body>
@@ -217,7 +235,7 @@ if("serviceWorker" in navigator&&location.protocol.indexOf("http")===0)window.ad
 window.__ie=null;window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();window.__ie=e});
 function gfStart(){
 (function(){
-var CUR="₹",dvAdmFy=0,dvFy=0,dbMon=new Date().toISOString().slice(0,7),dbMem="",divRates={tf:0,gf:0,sh:0,cv:0,ts:0,dv:0},keep={code:"",user:"",mid:""},dirList=[],sessionUser=null,unsubs=[],authChecked=false,members=[],monthly=[],apps=[],disb=[],ltlList=[],adminList=[],rulesLoaded=false,forceChg=false,tab="home",db=null,canWrite=false,stage="loading",mview="home",editId=null,detId=null,rulesText="",selFy=0,selMo=0,installEv=null,isAdmin=false,meId=null,err="",lastErr="",editMode=false,msSel="",msFy=0,dbEdit="",restoreData=null,restoreMsg="",restoreBusy=false,auditList=[],newCred=null,mStep=0,dirUnsub=null,chgChecked=false;
+var CUR="₹",dvAdmFy=0,dvFy=0,dbMon=new Date().toISOString().slice(0,7),dbMem="",divRates={tf:0,gf:0,sh:0,cv:0,ts:0,dv:0},keep={code:"",user:"",mid:""},dirList=[],sessionUser=null,unsubs=[],authChecked=false,members=[],monthly=[],apps=[],disb=[],ltlList=[],adminList=[],rulesLoaded=false,forceChg=false,tab="home",db=null,canWrite=false,stage="loading",mview="home",editId=null,detId=null,rulesText="",selFy=0,selMo=0,installEv=null,isAdmin=false,meId=null,err="",lastErr="",editMode=false,msSel="",msFy=0,dbEdit="",restoreData=null,restoreMsg="",restoreBusy=false,noticeList=[],feedbackList=[],lnFy=0,lnMo=0,auditList=[],newCred=null,mStep=0,dirUnsub=null,chgChecked=false;
 var month=new Date().toISOString().slice(0,7);
 var MN=["January","February","March","April","May","June","July","August","September","October","November","December"];
 function fyOf(mo){var y=+mo.slice(0,4),m=+mo.slice(5,7);return m>=4?y:y-1}
@@ -346,7 +364,7 @@ function adminWho(){var u=GF.auth.currentUser;if(!u)return"";if(u.email&&u.email
 function logAct(action,detail){if(!isAdmin||!db)return;try{db.collection("audit").doc(uid()).set({t:new Date().toISOString(),by:adminWho(),action:action,detail:detail||""}).catch(function(){})}catch(e){}}
 function saveFile(name,text,type,bom){var b=new Blob([(bom?"\ufeff":"")+text],{type:type});var a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},1500)}
 function flatRow(o){var r={};Object.keys(o).forEach(function(k){var v=o[k];r[k]=(v!==null&&typeof v==="object")?JSON.stringify(v):v});return r}
-function backupData(){return {exportedAt:new Date().toISOString(),exportedBy:adminWho(),members:members,monthly:monthly,applications:apps,disbursements:disb,ltlList:ltlList,administrators:adminList,settings:{rulesText:rulesText,dividend:divRates},activityLog:auditList}}
+function backupData(){return {exportedAt:new Date().toISOString(),exportedBy:adminWho(),members:members,monthly:monthly,applications:apps,disbursements:disb,ltlList:ltlList,notices:noticeList,feedback:feedbackList,administrators:adminList,settings:{rulesText:rulesText,dividend:divRates},activityLog:auditList}}
 function startDir(){if(dirUnsub)return;dirUnsub=GF.watch("directory",null,"x",function(q){dirList=toList(q);if(stage==="mlogin")render()},function(e){lastErr=(e&&(e.code||e.message))||"error";err="Cannot read the member names ("+lastErr+"). Check your internet and the Firestore rules.";if(stage==="mlogin")render()})}
 function stopDir(){if(dirUnsub){try{dirUnsub()}catch(e){}dirUnsub=null}dirList=[]}
 function restoreView(){
@@ -366,7 +384,7 @@ async function doRestore(exact){
   restoreBusy=true;restoreMsg="Restoring. Please wait and do not close the page…";render();
   var out={ok:0,fail:0,del:0},stamp=new Date().toISOString().slice(0,16).replace(/[:T]/g,"-");
   try{
-    var plan=[["members",d.members],["monthly",d.monthly],["applications",d.applications],["disb",d.disbursements],["ltl",d.ltlList]];
+    var plan=[["members",d.members],["monthly",d.monthly],["applications",d.applications],["disb",d.disbursements],["ltl",d.ltlList],["notices",d.notices]];
     var keep={};
     for(var pi=0;pi<plan.length;pi++){
       var col=plan[pi][0],list=(plan[pi][1]||[]).filter(function(x){return x&&typeof x.id==="string"&&x.id});
@@ -378,7 +396,7 @@ async function doRestore(exact){
     var st=d.settings;
     if(st){var dv=st.dividend||{};await db.doc("config/rules").set({text:st.rulesText||"",tfRate:+dv.tf||0,gfRate:+dv.gf||0,cvValue:+dv.cv||0,dividendValue:+dv.dv||0,totalShare:+dv.ts||0}).then(function(){out.ok++},function(){out.fail++})}
     if(exact){
-      var cur={members:members,monthly:monthly,applications:apps,disb:disb,ltl:ltlList};
+      var cur={members:members,monthly:monthly,applications:apps,disb:disb,ltl:ltlList,notices:noticeList};
       for(var c in cur){
         var extra=cur[c].filter(function(x){return !keep[c][x.id]});
         for(var e=0;e<extra.length;e+=15){await Promise.all(extra.slice(e,e+15).map(function(x){
@@ -388,14 +406,59 @@ async function doRestore(exact){
     restoreMsg="Restore finished: "+out.ok+" records written, "+out.del+" removed, "+out.fail+" could not be written."+(out.fail?" Records that could not be written were skipped. Check the Firestore rules.":"")+" A copy of your data from before the restore was downloaded."
   }catch(e){restoreMsg="The restore stopped: "+(e&&e.message||e)+". Some records may have been written. A copy from before the restore was downloaded."}
   restoreBusy=false;restoreData=null;render()}
+var bfDone={};
+function backfillDisb(){if(!isAdmin)return;disb.forEach(function(x){if(x.ownerUid||bfDone[x.id])return;var mm=members.find(function(y){return y.id===x.memberId});if(mm&&mm.authUid){bfDone[x.id]=1;db.collection("disb").doc(x.id).update({ownerUid:mm.authUid}).catch(function(){})}})}
+function fdate(t){var d=new Date(t);return isNaN(d)?esc(t||""):d.toLocaleString()}
+function monthIn(mon){var g=0;members.forEach(function(m){g+=rowCalc(m,mon)[16]});return g}
+function monthOut(mon){return disb.filter(function(x){return x.month===mon}).reduce(function(a,x){return a+(+x.instalment||0)},0)}
+function mlabel(mon){return MN[+mon.slice(5,7)-1]+" "+mon.slice(0,4)}
+function totalView(){
+  var srt=members.slice().sort(function(a,b){return a.name.localeCompare(b.name)}),ml=mlabel(month);
+  var cols=[["Share this month",5],["TF this month",6],["GF this month",7],["LTL Principal",8],["STL Principal",9],["LTL Interest",12],["STL Interest",13],["Form",14],["Admission",15],["Total",16]];
+  var tot=cols.map(function(){return 0}),rows="";
+  srt.forEach(function(m){var r=rowCalc(m,month);rows+='<tr><td class="n">'+esc(m.name)+'</td>'+cols.map(function(c,i){tot[i]+=r[c[1]];return '<td'+(c[1]===16?' class="tt"':'')+'>'+Number(r[c[1]]).toLocaleString()+'</td>'}).join("")+'</tr>'});
+  return monthPicker()+'<div class="sbtn s-in"><div class="k">Total of all members ('+ml+')</div><div class="sv">'+fmt(tot[9])+'</div></div><br>'+
+   '<div class="card pa"><h2>Total - '+ml+'</h2><div class="xw"><table class="xt"><tr><th>Name</th>'+cols.map(function(c){return '<th>'+c[0]+'</th>'}).join("")+'</tr>'+(rows||'<tr><td colspan="11" style="text-align:center">No members yet.</td></tr>')+'<tr class="t"><td class="n">TOTAL</td>'+tot.map(function(v){return '<td>'+Number(v).toLocaleString()+'</td>'}).join("")+'</tr></table></div></div><button class="mb" id="xprint">Print</button><button class="mb" id="xdl">Download</button>'}
+function noticeAdminView(){
+  var h=topRow()+'<div class="card"><h2>Notice Board</h2><div class="sub">Write a notice and tap Save. Every member can then read it on the Notice Board.</div><br><textarea id="nb_text" placeholder="Write the notice here" style="min-height:120px"></textarea><button class="mb" id="nbsave">Save notice</button></div><div class="card"><b>Saved notices</b>';
+  if(!noticeList.length)h+='<div class="sub">No notice yet.</div>';
+  noticeList.forEach(function(x){h+='<div class="row" style="align-items:flex-start"><div><div class="sub">'+fdate(x.t)+'</div><div style="white-space:pre-wrap">'+esc(x.text)+'</div></div><button class="g no" data-nd="'+x.id+'">✕</button></div>'});
+  return h+'</div>'}
+function suggAdminView(){
+  var rows=feedbackList.map(function(x){return '<tr><td class="n">'+fdate(x.t)+'</td><td>'+esc(x.memberName)+'</td><td>'+esc(x.kind)+'</td><td style="white-space:normal;text-align:left;min-width:220px">'+esc(x.text)+'</td></tr>'}).join("");
+  return topRow()+'<div class="card"><h2>Suggestion and Complain</h2><div class="sub">Written by members. You can read them but cannot change or delete them.</div></div><div class="card pa"><div class="xw"><table class="xt"><tr><th>Date and time</th><th>Member</th><th>Type</th><th>Message</th></tr>'+(rows||'<tr><td colspan="4" style="text-align:center">Nothing yet.</td></tr>')+'</table></div></div><button class="mb" id="xprint">Print</button><button class="mb" id="xdl">Download</button>'}
+function loanView(m,back){
+  var fo="";for(var y=lnFy-2;y<=lnFy+2;y++)fo+='<option value="'+y+'"'+(y===lnFy?' selected':'')+'>'+y+' – '+(y+1)+'</option>';
+  var mo="";[4,5,6,7,8,9,10,11,12,1,2,3].forEach(function(k){mo+='<option value="'+k+'"'+(k===lnMo?' selected':'')+'>'+MN[k-1]+' '+(k>=4?lnFy:lnFy+1)+'</option>'});
+  var mon=(lnMo>=4?lnFy:lnFy+1)+"-"+String(lnMo).padStart(2,"0");
+  var rows=disb.filter(function(x){return x.memberId===meId&&x.month===mon}).sort(function(a,b){return (a.gfDate||"").localeCompare(b.gfDate||"")});
+  var ti=0,tg=0,tc=0,body="";
+  rows.forEach(function(x){var cv=x.chequeValue!=null?+x.chequeValue:((+x.instalment||0)-(+x.gfValue||0));ti+=+x.instalment||0;tg+=+x.gfValue||0;tc+=cv;
+    body+='<tr><td class="n">'+esc(x.type)+'</td><td>'+Number(x.sanctioned||0).toLocaleString()+'</td><td>'+Number(x.instalment||0).toLocaleString()+'</td><td>'+esc(x.stage)+'</td><td>'+esc(x.gfPct)+'</td><td>'+Number(x.gfValue||0).toLocaleString()+'</td><td>'+esc(x.gfDate)+'</td><td>'+cv.toLocaleString()+'</td><td>'+esc(x.checkNo)+'</td></tr>'});
+  return '<div class="card"><h2>Loan disbursement</h2><div class="sub">'+esc(m.name)+'</div><br><div class="grid"><div><div class="k">Year</div><select id="lfy" class="sel">'+fo+'</select></div><div><div class="k">Month</div><select id="lfm" class="sel">'+mo+'</select></div></div></div>'+
+   '<div class="xw"><table class="xt"><tr><th>Type of loan</th><th>Loan sanctioned</th><th>Instalment</th><th>Instalment stage</th><th>GF %</th><th>GF value</th><th>GF date</th><th>Cheque value</th><th>Cheque number</th></tr>'+
+   (body||'<tr><td colspan="9" style="text-align:center">No loan disbursement in '+mlabel(mon)+'.</td></tr>')+
+   (rows.length?'<tr class="t"><td class="n">Total</td><td></td><td>'+ti.toLocaleString()+'</td><td></td><td></td><td>'+tg.toLocaleString()+'</td><td></td><td>'+tc.toLocaleString()+'</td><td></td></tr>':'')+'</table></div>'+back}
+function noticeMemberView(back){
+  var h='<div class="card"><h2>Notice Board</h2>';
+  if(!noticeList.length)h+='<div class="sub">No notice yet.</div>';
+  noticeList.forEach(function(x){h+='<div class="row" style="align-items:flex-start"><div><div class="sub">'+fdate(x.t)+'</div><div style="white-space:pre-wrap">'+esc(x.text)+'</div></div></div>'});
+  return h+'<br>'+back+'</div>'}
+function suggMemberView(back){
+  var mine=feedbackList.filter(function(x){return x.memberId===meId}).sort(function(a,b){return (b.t||"").localeCompare(a.t||"")});
+  var h='<div class="card"><h2>Suggestion and Complain</h2><div class="fl">Type</div><select id="sg_kind" class="sel"><option>Suggestion</option><option>Complain</option></select><div class="fl">Write here</div><textarea id="sg_text" maxlength="1000" placeholder="Write your suggestion or complain"></textarea><div class="note">After you save, it cannot be changed. The administrator can read it.</div><button class="mb b-mint" id="sg_save">Save</button>';
+  h+='<h2 style="font-size:20px;margin-top:8px">Your earlier messages</h2>';
+  if(!mine.length)h+='<div class="sub">Nothing yet.</div>';
+  mine.forEach(function(x){h+='<div class="row" style="align-items:flex-start"><div><div class="sub">'+fdate(x.t)+' · '+esc(x.kind)+'</div><div style="white-space:pre-wrap">'+esc(x.text)+'</div></div></div>'});
+  return h+'<br>'+back+'</div>'}
 function auditView(){
   var h=topRow()+'<div class="card"><h2>Activity log</h2><div class="sub">Every change made by an administrator. The newest 200 entries are shown. Entries cannot be edited or deleted.</div></div>';
   var rows=auditList.map(function(x){var d=new Date(x.t),when=isNaN(d)?esc(x.t):d.toLocaleString();return '<tr><td class="n">'+when+'</td><td>'+esc(x.by)+'</td><td>'+esc(x.action)+'</td><td style="white-space:normal;text-align:left">'+esc(x.detail)+'</td></tr>'}).join("");
   return h+'<div class="card pa"><div class="xw"><table class="xt"><tr><th>Date and time</th><th>Administrator</th><th>Action</th><th>Details</th></tr>'+(rows||'<tr><td colspan="4" style="text-align:center">No activity recorded yet.</td></tr>')+'</table></div></div><button class="mb" id="xprint">Print</button><button class="mb" id="xdl">Download</button>'}
-var APPVER="Version 11";
+var APPVER="Version 12";
 var LOANS=["LTL","STL (Medical)","STL (Other)"];
 var STAGES=["Complete","1st installment","2nd installment","3rd installment","4th installment","5th installment"];
-var TABS=[["home","Summary"],["mem","Members"],["det","Details"],["led","Ledger"],["apps","Apps"],["disb","Loan disbursement"]];
+var TABS=[["home","Summary"],["mem","Members"],["det","Details"],["total","Total"],["led","Ledger"],["apps","Apps"],["disb","Loan disbursement"],["notice","Notice Board"],["sugg","Suggestion and Complain"]];
 var TABON={ltl:"apps",dvform:"det",msheet:"apps"};
 
 async function save(col,id,obj){
@@ -406,7 +469,7 @@ async function del(col,id){
   if(!canWrite)return;
   if(pend!==col+id){pend=col+id;toast("Tap the delete button again to confirm.");setTimeout(function(){pend=null},4500);return}
   pend=null;
-  try{var who=col==="members"?((members.find(function(x){return x.id===id})||{}).name||id):col==="ltl"?((ltlList.find(function(x){return x.id===id})||{}).name||id):id;await db.collection(col).doc(id).delete();if(col==="members")await db.collection("directory").doc(id).delete();logAct(col==="members"?"Member deleted":"LTL name deleted",who)}catch(e){toast("Could not delete")}
+  try{var who=col==="members"?((members.find(function(x){return x.id===id})||{}).name||id):col==="ltl"?((ltlList.find(function(x){return x.id===id})||{}).name||id):id;await db.collection(col).doc(id).delete();if(col==="members")await db.collection("directory").doc(id).delete();logAct(col==="members"?"Member deleted":col==="notices"?"Notice deleted":"LTL name deleted",who)}catch(e){toast("Could not delete")}
 }
 function docsOf(id){var o={};monthly.forEach(function(x){if(x.memberId===id)o[x.month]=x});return o}
 function nextMon(mo){var y=+mo.slice(0,4),m=+mo.slice(5,7)+1;if(m>12){m=1;y++}return y+"-"+String(m).padStart(2,"0")}
@@ -502,7 +565,7 @@ function render(){
     b.onclick=function(){tab=x[0];editMode=false;render()};t.appendChild(b)});
   $("note").textContent="";
   var h;
-  if(tab==="home")h=home();else if(tab==="mem")h=memView();else if(tab==="det")h=detailsView();else if(tab==="led")h=ledView();else if(tab==="apps")h=appsView();else if(tab==="ltl")h=ltlView();else if(tab==="disb")h=dispView();else if(tab==="sheet")h=sheetView();else if(tab==="msheet")h=msheetView();else if(tab==="audit")h=auditView();else if(tab==="restore")h=restoreView();else if(tab==="dvform")h=dvFormView();else if(tab==="addadm")h=addAdmView();else if(tab==="chgadm")h=chgAdmView();else h=home();
+  if(tab==="home")h=home();else if(tab==="mem")h=memView();else if(tab==="det")h=detailsView();else if(tab==="led")h=ledView();else if(tab==="apps")h=appsView();else if(tab==="ltl")h=ltlView();else if(tab==="disb")h=dispView();else if(tab==="sheet")h=sheetView();else if(tab==="msheet")h=msheetView();else if(tab==="audit")h=auditView();else if(tab==="restore")h=restoreView();else if(tab==="total")h=totalView();else if(tab==="notice")h=noticeAdminView();else if(tab==="sugg")h=suggAdminView();else if(tab==="dvform")h=dvFormView();else if(tab==="addadm")h=addAdmView();else if(tab==="chgadm")h=chgAdmView();else h=home();
   $("app").innerHTML=h+'<button class="mb b-peach" id="abk">← Back</button>';
   bind();applyLock();
 }
@@ -511,10 +574,10 @@ function monthPicker(){return topRow()+'<input type="month" id="mon" value="'+mo
 function totalIn(){var ms=allMonths(),g=0;members.forEach(function(m){ms.forEach(function(mo){g+=rowCalc(m,mo)[16]})});return g}
 function totalOut(){return disb.reduce(function(a,x){return a+(+x.instalment||0)},0)}
 function home(){
-  var inn=totalIn(),out=totalOut();
-  var h=topRow()+'<div class="grid"><div class="card"><div class="k">Fund balance</div><div class="v">'+fmt(inn-out)+'</div></div>'+
-   '<div class="sbtn s-in"><div class="k">Total in</div><div class="sv">'+fmt(inn)+'</div></div>'+
-   '<div class="sbtn s-out"><div class="k">Total out</div><div class="sv">'+fmt(out)+'</div></div>'+
+  var inn=monthIn(month),out=monthOut(month),ml=mlabel(month);
+  var h=monthPicker()+'<div class="grid"><div class="card"><div class="k">Fund balance ('+ml+')</div><div class="v">'+fmt(inn-out)+'</div></div>'+
+   '<div class="sbtn s-in"><div class="k">Total in ('+ml+')</div><div class="sv">'+fmt(inn)+'</div></div>'+
+   '<div class="sbtn s-out"><div class="k">Total out ('+ml+')</div><div class="sv">'+fmt(out)+'</div></div>'+
    '<div class="card"><div class="k">Members</div><div class="v">'+members.length+' / 50</div></div></div>';
   if(adminList.length<3)h+='<button class="mb" id="gadd">Add administrator</button>';
   if(adminList.length>0)h+='<button class="mb" id="gchg">Change administrator</button>';
@@ -566,11 +629,7 @@ async function applyDisbChanges(list){
     var before=effCarry(m,c.month,"gfM");
     if(c.gf)doc.gfM=before+c.gf;
     await put(k,doc);
-    if(c.gf){
-      /* GF this month carries forward, so keep next month at its old value */
-      var nm=nextMon(c.month),nd=docsOf(c.memberId)[nm];
-      if(!nd||nd.gfM===undefined){var d2=Object.assign({},nd||{});delete d2.id;d2.memberId=c.memberId;d2.month=nm;d2.ownerUid=m.authUid;d2.gfM=before;await put(c.memberId+"_"+nm,d2)}
-    }}}
+  }}
 function dispView(){
   var srt=members.slice().sort(function(a,b){return a.name.localeCompare(b.name)});
   var h=topRow();
@@ -685,6 +744,9 @@ if(mview==="sheet"){
   if(mview==="rules")return bar+'<div class="card"><h2>Rules and Regulations</h2><div style="white-space:pre-wrap">'+(rulesText?esc(rulesText):'<span class="sub">Rules have not been published yet.</span>')+'</div><br>'+back+'</div>';
   
   if(mview==="calc")return bar+calcView(m,back);
+  if(mview==="loan")return bar+loanView(m,back);
+  if(mview==="notice")return bar+noticeMemberView(back);
+  if(mview==="sugg")return bar+suggMemberView(back);
   if(mview==="apply")return bar+'<div class="card"><h2>Application</h2><div class="fl">Type of loan</div><select id="at" class="sel"><option value="">Type of loan</option>'+LOANS.map(function(x){return '<option>'+x+'</option>'}).join("")+'</select><input id="aa" type="number" inputmode="decimal" placeholder="Amount requested"><input id="am" type="number" inputmode="numeric" placeholder="Repayment period (months)"><input id="ap2" placeholder="Purpose"><button class="mb b-mint" id="asub">Submit application</button><h2 style="font-size:20px;margin-top:8px">Your applications</h2>'+appRows(mine)+'<br>'+back+'</div>';
   if(mview==="list")return bar+'<div class="card"><h2>LTL Application list</h2>'+appRows(mine)+'<br>'+back+'</div>';
   if(mview==="chpw")return bar+'<div class="card"><h2>Change password</h2>'+(forceChg?'<div class="note" style="color:var(--bad);font-weight:600">Please change the default password before you continue.</div>':'')+'<div class="fl">Current password</div><input class="pw" id="cp_cur" type="password" autocomplete="off"><div class="fl">New password</div><input class="pw" id="cp_new" type="password" autocomplete="new-password"><div class="fl">Again new password</div><input class="pw" id="cp_new2" type="password" autocomplete="new-password"><div class="note">'+PWMSG+'</div><button class="g" id="shw2">Show / hide</button><button class="mb b-gold" id="cpsave">Save new password</button>'+back+'</div>';
@@ -699,7 +761,7 @@ if(mview==="sheet"){
   var bioOn=!!(bioGet().member&&bioGet().member.memberId===meId);
   return bar+notice+detCard+'<div class="card"><h2>Year and month</h2><div class="sub">'+esc(m.name)+'</div><br><div class="grid"><div><div class="k">Year</div><select id="fy" class="sel">'+fo+'</select></div><div><div class="k">Month</div><select id="fm" class="sel">'+mo+'</select></div></div>'+
   '<button class="mb b-gold" id="chg">Change month</button>'+
-  '<button class="mb b-gold" id="bxl">Open Excel sheet</button><button class="mb b-rule" id="brules">Rules and Regulations</button><button class="mb b-mint" id="bapp">Application</button><button class="mb b-mint" id="blist">LTL Application list</button><button class="mb b-mint" id="bdiv">Dividend</button><button class="mb b-mint" id="bcalc">Interest calculator</button><button class="mb b-mint" id="bcp">Change password</button><button class="mb b-mint" id="bbio">'+(bioOn?"Turn off biometric":"Enable biometric")+'</button><button class="mb b-peach" id="bout">← Back</button></div>';
+  '<button class="mb b-gold" id="bxl">Open Excel sheet</button><button class="mb b-rule" id="brules">Rules and Regulations</button><button class="mb b-mint" id="bapp">Application</button><button class="mb b-mint" id="blist">LTL Application list</button><button class="mb b-mint" id="bdiv">Dividend</button><button class="mb b-mint" id="bloan">Loan disbursement</button><button class="mb b-mint" id="bnote">Notice Board</button><button class="mb b-mint" id="bsug">Suggestion and Complain</button><button class="mb b-mint" id="bcalc">Interest calculator</button><button class="mb b-mint" id="bcp">Change password</button><button class="mb b-mint" id="bbio">'+(bioOn?"Turn off biometric":"Enable biometric")+'</button><button class="mb b-peach" id="bout">← Back</button></div>';
 }
 function m0name(){var m=members.find(function(x){return x.id===meId});return m?m.name:"Member"}
 function bindMember(){
@@ -711,6 +773,16 @@ function bindMember(){
   go("bdiv",function(){dvFy=selFy||fyOf(month);mview="dividend";render();window.scrollTo(0,0)});
   go("bcp",function(){mview="chpw";render()});
   go("bcalc",function(){mview="calc";render();window.scrollTo(0,0)});
+  go("bloan",function(){var n0=now0();lnFy=fyOf(n0);lnMo=+n0.slice(5,7);mview="loan";render();window.scrollTo(0,0)});
+  go("bnote",function(){mview="notice";render();window.scrollTo(0,0)});
+  go("bsug",function(){mview="sugg";render();window.scrollTo(0,0)});
+  var lfy=$("lfy");if(lfy)lfy.onchange=function(){lnFy=+lfy.value;lnMo=+$("lfm").value;render()};
+  var lfm=$("lfm");if(lfm)lfm.onchange=function(){lnMo=+lfm.value;render()};
+  go("sg_save",async function(){var tx=$("sg_text").value.trim(),kd=$("sg_kind").value;
+    if(tx.length<5){toast("Please write a few words.");return}
+    var m=members.find(function(x){return x.id===meId});
+    try{await db.collection("feedback").doc(uid()).set({memberId:meId,memberName:m.name,ownerUid:GF.auth.currentUser.uid,kind:kd,text:tx.slice(0,1000),t:new Date().toISOString()});$("sg_text").value="";toast("Saved. The administrator can read it. It cannot be changed.",true,5000)}
+    catch(e){toast("Could not save. Please try again.")}});
   if($("cc_amt")){var cu=function(){calcUpdate()};["cc_amt","cc_rate","cc_mon"].forEach(function(i){$(i).oninput=cu});$("cc_type").onchange=cu;
     document.querySelectorAll("[data-rate]").forEach(function(b){b.onclick=function(){$("cc_rate").value=b.dataset.rate;calcUpdate()}});calcUpdate()}
   go("inst",doInstall);go("shw2",togglePw);go("xprint",doPrint);go("xdl",function(){doDownload("NHSECCS-"+m0name().replace(/\s+/g,"-"))});
@@ -782,6 +854,9 @@ function bind(){
   var xs=$("xsel");if(xs)xs.onchange=function(){sheetMon=xs.value;render()};
   go("abk",function(){if(tab==="home"){doLogout();return}tab=TABON[tab]||"home";render();window.scrollTo(0,0)});
   go("gaud",function(){tab="audit";render();window.scrollTo(0,0)});
+  go("nbsave",async function(){var tx=$("nb_text").value.trim();if(!tx){toast("Write the notice first.");return}
+    try{await db.collection("notices").doc(uid()).set({t:new Date().toISOString(),by:adminWho(),text:tx});logAct("Notice saved",tx.slice(0,60));$("nb_text").value="";toast("Notice saved. Members can read it now.",true)}catch(e){toast("Could not save the notice.")}});
+  document.querySelectorAll("[data-nd]").forEach(function(b){b.onclick=function(){del("notices",b.dataset.nd)}});
   go("grest",function(){restoreData=null;restoreMsg="";tab="restore";render();window.scrollTo(0,0)});
   var rf=$("rf");if(rf)rf.onchange=function(){var f=rf.files&&rf.files[0];if(!f)return;var fr=new FileReader();
     fr.onload=function(){try{var d=JSON.parse(fr.result);if(!d||!Array.isArray(d.members)||!Array.isArray(d.monthly)||!d.exportedAt)throw new Error("x");restoreData=d;restoreMsg=""}catch(e){restoreData=null;restoreMsg="This is not a NHSECCS backup file. Choose the JSON file made with Backup (JSON file)."}render()};
@@ -823,6 +898,7 @@ function bind(){
       await db.collection("directory").doc(id).set({name:m.name,email:ne});
       monthly.filter(function(x){return x.memberId===id}).forEach(function(x){db.collection("monthly").doc(x.id).update({ownerUid:au})});
       apps.filter(function(x){return x.memberId===id}).forEach(function(x){db.collection("applications").doc(x.id).update({ownerUid:au})});
+      disb.filter(function(x){return x.memberId===id}).forEach(function(x){db.collection("disb").doc(x.id).update({ownerUid:au})});
       editId=null;newCred={name:m.name,pw:pw1};logAct("Member password reset",m.name);render();window.scrollTo(0,0);toast("New password created. Give it to the member.",true,6000)}
     catch(e){toast("Could not reset: "+(e&&e.message||e))}});
   /* ledger */
@@ -841,7 +917,7 @@ function bind(){
   go("gms",function(){tab="msheet";render();window.scrollTo(0,0)});
   var msel=$("msel");if(msel)msel.onchange=function(){msSel=msel.value;render()};
   var msfy=$("msfy");if(msfy)msfy.onchange=function(){msFy=+msfy.value;render()};
-  go("xprint",doPrint);go("xdl",function(){doDownload(tab==="msheet"?"NHSECCS-"+((members.find(function(x){return x.id===msSel})||{}).name||"member").replace(/\s+/g,"-"):(tab==="audit"?"NHSECCS-Activity-log":"NHSECCS-Excel-sheet"))});
+  go("xprint",doPrint);go("xdl",function(){doDownload(tab==="msheet"?"NHSECCS-"+((members.find(function(x){return x.id===msSel})||{}).name||"member").replace(/\s+/g,"-"):(tab==="audit"?"NHSECCS-Activity-log":tab==="total"?"NHSECCS-Total-"+month:tab==="sugg"?"NHSECCS-Suggestions":"NHSECCS-Excel-sheet"))});
   go("edtog",function(){editMode=!editMode;render()});
   go("ltadd",async function(){var n=$("ltn").value.trim();if(!n){toast("Write the name of the member.");return}
     try{await db.collection("ltl").doc(uid()).set({name:n.toUpperCase(),date:new Date().toISOString().slice(0,10),auto:false});logAct("LTL name added",n.toUpperCase());toast("Name added.",true)}catch(e){toast("Could not save.")}});
@@ -889,14 +965,14 @@ function bind(){
     var type=$("db_type").value,san=g("db_san"),ins=g("db_ins"),stage2=$("db_stage").value,gfp=g("db_gfp"),chk=$("db_chk").value.trim();
     if(!m||!(ins>0)){toast("Choose the member and enter the instalment amount.");return}
     var gfv=Math.round(ins*gfp/100),old=dbEdit?disb.find(function(x){return x.id===dbEdit}):null,today=new Date().toISOString().slice(0,10);
-    var rec={memberId:id,memberName:m.name,month:mon2,type:type,sanctioned:san,instalment:ins,stage:stage2,gfPct:gfp,gfValue:gfv,chequeValue:ins-gfv,gfApplied:true,gfDate:old?old.gfDate:today,checkNo:chk};
+    var rec={memberId:id,memberName:m.name,ownerUid:m.authUid,month:mon2,type:type,sanctioned:san,instalment:ins,stage:stage2,gfPct:gfp,gfValue:gfv,chequeValue:ins-gfv,gfApplied:true,gfDate:old?old.gfDate:today,checkNo:chk};
     try{
       await db.collection("disb").doc(old?old.id:uid()).set(rec);
       var ch=[{memberId:id,month:mon2,type:type,delta:ins,gf:gfv}];
       if(old)ch.push({memberId:old.memberId,month:old.month,type:old.type,delta:-(+old.instalment||0),gf:old.gfApplied?-(+old.gfValue||0):0});
       await applyDisbChanges(ch);
       var was=!!old;dbEdit="";dbMon=mon2;logAct(was?"Loan record updated":"Loan disbursed",m.name+" · "+type+" · "+ins+" · "+mon2);
-      toast(was?"Record updated. LTL / STL and GF of the month are corrected.":"Saved. The instalment is added to "+(type==="LTL"?"LTL":"STL")+" and the GF value to GF of this month.",true,5000);render()}
+      toast(was?"Record updated. LTL / STL and GF of the month are corrected.":"Saved. The instalment is added to "+(type==="LTL"?"LTL":"STL")+" and the GF value to GF of this month (it continues in the next months).",true,5000);render()}
     catch(e){toast("Could not save: "+(e&&e.message||e))}});
   document.querySelectorAll("[data-de]").forEach(function(b){b.onclick=function(){var r=disb.find(function(x){return x.id===b.dataset.de});if(!r)return;dbEdit=r.id;dbMon=r.month;dbMem=r.memberId;render();window.scrollTo(0,0)}});
   go("dbcancel",function(){dbEdit="";render()});
@@ -939,8 +1015,10 @@ function startData(role){
   unsubs.push(GF.watch("monthly","ownerUid",role,function(q){monthly=toList(q);if(role==="admin")syncShare();if(live())render()},er));
   unsubs.push(GF.watch("applications","ownerUid",role,function(q){apps=toList(q);if(live())render()},er));
   unsubs.push(GF.watchDoc("config","rules",function(d){var x=d.exists()?d.data():{};rulesText=x.text||"";divRates={tf:+x.tfRate||0,gf:+x.gfRate||0,sh:0,cv:+x.cvValue||0,ts:+x.totalShare||0,dv:+x.dividendValue||0};rulesLoaded=true;if(role==="admin")syncShare();if(live())render()},function(){}));
+  unsubs.push(GF.watch("disb","ownerUid",role,function(q){disb=toList(q);if(role==="admin")setTimeout(backfillDisb,1500);if(live())render()},er));
+  unsubs.push(GF.watchLog("notices",100,function(q){noticeList=toList(q);if(live())render()},function(){}));
+  unsubs.push(GF.watch("feedback","ownerUid",role,function(q){feedbackList=toList(q);if(live())render()},function(){}));
   if(role==="admin"){
-    unsubs.push(GF.watch("disb",null,"admin",function(q){disb=toList(q);if(live())render()},er));
     unsubs.push(GF.watch("ltl",null,"admin",function(q){ltlList=toList(q);if(live())render()},er));
     unsubs.push(GF.watch("admins",null,"admin",function(q){adminList=toList(q);if(live())render()},er));
     unsubs.push(GF.watchLog("audit",200,function(q){auditList=toList(q);if(live())render()},function(){}));
@@ -950,7 +1028,7 @@ function enter(isA){chgChecked=false;isAdmin=isA;canWrite=isA;sessionUser=GF.aut
 function doLogout(){
   unsubs.forEach(function(u){try{u()}catch(e){}});unsubs=[];
   try{GF.signOut()}catch(e){}
-  members=[];monthly=[];apps=[];disb=[];ltlList=[];adminList=[];meId=null;isAdmin=false;canWrite=false;sessionUser=null;rulesLoaded=false;forceChg=false;chgChecked=false;auditList=[];newCred=null;stopDir();mStep=0;mview="home";tab="home";err="";
+  members=[];monthly=[];apps=[];disb=[];noticeList=[];feedbackList=[];ltlList=[];adminList=[];meId=null;isAdmin=false;canWrite=false;sessionUser=null;rulesLoaded=false;forceChg=false;chgChecked=false;auditList=[];newCred=null;stopDir();mStep=0;mview="home";tab="home";err="";
   stage="choose";render()}
 function boot(){
   if(!authChecked||stage!=="loading")return;
