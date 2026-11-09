@@ -458,7 +458,7 @@ function auditView(){
   var h=topRow()+'<div class="card"><h2>Activity log</h2><div class="sub">Every change made by an administrator. The newest 200 entries are shown. Entries cannot be edited or deleted.</div></div>';
   var rows=auditList.map(function(x){var d=new Date(x.t),when=isNaN(d)?esc(x.t):d.toLocaleString();return '<tr><td class="n">'+when+'</td><td>'+esc(x.by)+'</td><td>'+esc(x.action)+'</td><td style="white-space:normal;text-align:left">'+esc(x.detail)+'</td></tr>'}).join("");
   return h+'<div class="card pa"><div class="xw"><table class="xt"><tr><th>Date and time</th><th>Administrator</th><th>Action</th><th>Details</th></tr>'+(rows||'<tr><td colspan="4" style="text-align:center">No activity recorded yet.</td></tr>')+'</table></div></div><button class="mb" id="xprint">Print</button><button class="mb" id="xdl">Download</button>'}
-var APPVER="Version 14";
+var APPVER="Version 15";
 var negT=0;
 function markNeg(){
   var els=document.querySelectorAll("#app td,#app .tv,#app .sv,#app .v,#app .pill");
@@ -502,7 +502,7 @@ function detailsView(){
   var srt=members.slice().sort(function(a,b){return a.name.localeCompare(b.name)});
   if(!detId||!members.find(function(x){return x.id===detId}))detId=srt[0].id;
   var m=members.find(function(x){return x.id===detId}),d0=docsOf(detId)[month]||{};
-  var oltl=effOpen2(m,month,"openLTL","ltl"),ostl=effOpen2(m,month,"openSTL","stl"),lt=+d0.ltl||0,st=+d0.stl||0;
+  var oltl=effOpen2(m,month,"openLTL","ltl","ltlPrin"),ostl=effOpen2(m,month,"openSTL","stl","stlPrin"),lt=+d0.ltl||0,st=+d0.stl||0;
   var lr=effCarry(m,month,"ltlRate",m.ltlRate),sr=effCarry(m,month,"stlRate",m.stlRate);
   var sh=effCarry(m,month,"shareM"),tf=effCarry(m,month,"tfM"),gf=effCarry(m,month,"gfM"),lp=effCarry(m,month,"ltlPrin"),sp=effCarry(m,month,"stlPrin"),fm=effCarry(m,month,"formFee"),rg=effCarry(m,month,"regFee");
   var li=Math.round(oltl*lr/1200),si=Math.round(ostl*sr/1200),tot=sh+tf+gf+lp+sp+fm+rg+li+si;
@@ -515,13 +515,14 @@ function detailsView(){
    RO("LTL Interest",li,"d_li")+RO("STL Interest",si,"d_si")+RO("Total",tot,"d_tot")+'</div><div class="card" style="margin-top:10px"><div class="k">Next month opening</div><div id="d_next" class="tv" style="font-size:15px"></div></div>';
   return h+'<button class="mb b-gold" id="dsave">Save</button><button class="mb b-mint" id="gdv">Dividend details</button>';
 }
-function effOpen2(m,mon,key,addKey){
+function effOpen2(m,mon,key,addKey,prKey){
   var D=docsOf(m.id),ks=Object.keys(D).sort(),cur=+m[key]||0;
   if(!ks.length||ks[0]>mon)return cur;
-  var pp=0;
+  var add=0,pr=0;
   for(var t=ks[0];t<=mon;t=nextMon(t)){var d=D[t];
-    if(d&&d[key]!==undefined)cur=+d[key];else if(t!==ks[0])cur-=pp;
-    pp=(d&&d[addKey]!==undefined)?+d[addKey]:0}
+    if(d&&d[key]!==undefined)cur=+d[key];else if(t!==ks[0])cur=cur+add-pr;
+    add=(d&&d[addKey]!==undefined)?+d[addKey]:0;
+    if(d&&d[prKey]!==undefined)pr=+d[prKey]}
   return cur}
 var XORD=[0,1,2,3,17,4,18,5,6,7,8,9,10,11,12,13,14,15,16];
 var XLAB=["Opening Share","Opening TF","Opening GF","Opening LTL","LTL this month","Opening STL","STL this month","Share this Month","TF this Month","GF this Month","LTL Principal","STL Principal","LTL interest rate (%)","STL interest rate (%)","LTL Interest","STL Interest","Form","Registration","Total"];
@@ -529,7 +530,7 @@ var XFLOW={5:1,6:1,7:1,8:1,9:1,12:1,13:1,14:1,15:1,16:1,17:1,18:1};
 function xcell(idx,v){return '<td'+(idx===16?' class="tt"':'')+'>'+(idx===10||idx===11?v:Number(v).toLocaleString())+'</td>'}
 function rowCalc(m,mon){
   var D=docsOf(m.id)[mon]||{};
-  var oltl=effOpen2(m,mon,"openLTL","ltl"),ostl=effOpen2(m,mon,"openSTL","stl"),lr=effCarry(m,mon,"ltlRate",m.ltlRate),sr=effCarry(m,mon,"stlRate",m.stlRate);
+  var oltl=effOpen2(m,mon,"openLTL","ltl","ltlPrin"),ostl=effOpen2(m,mon,"openSTL","stl","stlPrin"),lr=effCarry(m,mon,"ltlRate",m.ltlRate),sr=effCarry(m,mon,"stlRate",m.stlRate);
   var li=Math.round(oltl*lr/1200),si=Math.round(ostl*sr/1200),sh=effCarry(m,mon,"shareM"),tf=effCarry(m,mon,"tfM"),gf=effCarry(m,mon,"gfM"),lp=effCarry(m,mon,"ltlPrin"),sp=effCarry(m,mon,"stlPrin"),fm=effCarry(m,mon,"formFee"),rg=effCarry(m,mon,"regFee");
   return [effBal(m,mon,"openShare","shareM",1),effBal(m,mon,"openTF","tfM",1),effBal(m,mon,"openGF","gfM",1),oltl,ostl,sh,tf,gf,lp,sp,lr,sr,li,si,fm,rg,sh+tf+gf+lp+sp+li+si+fm+rg,+D.ltl||0,+D.stl||0];
 }
@@ -961,7 +962,7 @@ function bind(){
       var li=Math.round(g("d_oltl")*g("d_lr")/1200),si=Math.round(g("d_ostl")*g("d_sr")/1200);
       $("d_li").textContent=fmt(li);$("d_si").textContent=fmt(si);
       $("d_tot").textContent=fmt(g("d_sm")+g("d_tm")+g("d_gm")+g("d_lp")+g("d_sp")+g("d_fm")+g("d_rg")+li+si);
-      $("d_next").textContent="LTL "+fmt(g("d_oltl")-g("d_ltl"))+"  ·  STL "+fmt(g("d_ostl")-g("d_stl"))};
+      $("d_next").textContent="LTL "+fmt(g("d_oltl")+g("d_ltl")-g("d_lp"))+"  ·  STL "+fmt(g("d_ostl")+g("d_stl")-g("d_sp"))};
     ["d_oltl","d_ltl","d_ostl","d_stl","d_lr","d_sr","d_sm","d_tm","d_gm","d_lp","d_sp","d_fm","d_rg"].forEach(function(i){$(i).oninput=upd});upd()}
   var dsel=$("dsel");if(dsel)dsel.onchange=function(){detId=dsel.value;render()};
   go("gdv",function(){dvAdmFy=fyOf(month);tab="dvform";render();window.scrollTo(0,0)});
@@ -1133,4 +1134,3 @@ window.dispatchEvent(new Event("gf-ready"));
 </script>
 </body>
 </html>
-
