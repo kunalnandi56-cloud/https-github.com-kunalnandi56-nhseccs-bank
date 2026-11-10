@@ -224,6 +224,9 @@ input:disabled,select:disabled,textarea:disabled{opacity:.72;background:var(--ti
 .neg{color:#D62839!important}
 @media (prefers-color-scheme:dark){.neg{color:#FF7A8A!important}}
 input.neg,.ti.neg{color:#D62839!important}
+
+input[type=number]{-moz-appearance:textfield;appearance:textfield}
+input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 </style>
 </head>
 <body>
@@ -458,7 +461,7 @@ function auditView(){
   var h=topRow()+'<div class="card"><h2>Activity log</h2><div class="sub">Every change made by an administrator. The newest 200 entries are shown. Entries cannot be edited or deleted.</div></div>';
   var rows=auditList.map(function(x){var d=new Date(x.t),when=isNaN(d)?esc(x.t):d.toLocaleString();return '<tr><td class="n">'+when+'</td><td>'+esc(x.by)+'</td><td>'+esc(x.action)+'</td><td style="white-space:normal;text-align:left">'+esc(x.detail)+'</td></tr>'}).join("");
   return h+'<div class="card pa"><div class="xw"><table class="xt"><tr><th>Date and time</th><th>Administrator</th><th>Action</th><th>Details</th></tr>'+(rows||'<tr><td colspan="4" style="text-align:center">No activity recorded yet.</td></tr>')+'</table></div></div><button class="mb" id="xprint">Print</button><button class="mb" id="xdl">Download</button>'}
-var APPVER="Version 15";
+var APPVER="Version 16";
 var negT=0;
 function markNeg(){
   var els=document.querySelectorAll("#app td,#app .tv,#app .sv,#app .v,#app .pill");
@@ -643,6 +646,8 @@ function ltlView(){
     h+='<div class="row"><span>'+(i+1)+'. '+esc(x.name)+(x.auto?' <span class="sub">(approved)</span>':'')+'</span><button class="g no" data-ld="'+x.id+'">✕</button></div>'});
   return h+'</div>';
 }
+function loanPrevSan(id,type,oldId){var prev=disb.filter(function(x){return x.memberId===id&&x.type===type&&x.id!==oldId&&+x.sanctioned>0}).sort(function(a,b){return (b.month||"").localeCompare(a.month||"")||(b.gfDate||"").localeCompare(a.gfDate||"")})[0];return prev?+prev.sanctioned:0}
+function loanPaid(id,type,san,oldId){return disb.filter(function(x){return x.memberId===id&&x.type===type&&+x.sanctioned===san&&x.id!==oldId}).reduce(function(a,x){return a+(+x.instalment||0)},0)}
 async function applyDisbChanges(list){
   var by={};
   list.forEach(function(c){var k=c.memberId+"_"+c.month;var o=(by[k]=by[k]||{memberId:c.memberId,month:c.month,d:{ltl:0,stl:0},gf:0});o.d[c.type==="LTL"?"ltl":"stl"]+=c.delta;o.gf+=(c.gf||0)});
@@ -677,7 +682,7 @@ function dispView(){
    '<td><select id="db_stage">'+sel(STAGES,e&&e.stage)+'</select></td>'+
    '<td><input id="db_gfp" type="number" inputmode="decimal" step="any" value="'+esc(blank(e&&e.gfPct))+'"></td>'+
    '<td><span class="pill" id="db_gfv">'+esc(blank(e&&e.gfValue))+'</span></td><td><span class="pill">'+(e?esc(e.gfDate):today)+'</span></td>'+
-   '<td><span class="pill" id="db_cv">'+esc(blank(e&&e.chequeValue))+'</span></td>'+'<td><input id="db_chk" placeholder="Cheque no." value="'+esc(e?e.checkNo:"")+'"></td></tr></table></div>';
+   '<td><span class="pill" id="db_cv">'+esc(blank(e&&e.chequeValue))+'</span></td>'+'<td><input id="db_chk" placeholder="Cheque no." value="'+esc(e?e.checkNo:"")+'"></td></tr></table></div><div class="note" id="db_note"></div>';
   h+='<div style="display:flex;gap:10px"><button class="mb" id="dbsave" style="flex:1">'+(e?'Update record':'Save')+'</button>'+(e?'<button class="mb b-peach" id="dbcancel" style="flex:1">Cancel edit</button>':'<button class="mb b-peach" id="dbback" style="flex:1">Back</button>')+'</div>';
   h+='<div class="grid"><div class="sbtn s-out"><div class="k">Total disbursement</div><div class="sv">'+fmt(totalOut())+'</div></div><div class="sbtn s-in"><div class="k">Disbursement in this month</div><div class="sv">'+fmt(tdMon)+'</div></div></div>';
   h+='<div class="xw"><table class="xt"><tr>'+["Name","Type of loan","Loan sanctioned","Instalment","Instalment stage","GF %","GF value","GF date","Cheque value","Cheque number","Action"].map(function(x){return '<th>'+x+'</th>'}).join("")+'</tr>';
@@ -992,30 +997,39 @@ function bind(){
   /* loan disbursement */
   var dbm=$("dbm");if(dbm)dbm.onchange=function(){dbMem=dbm.value};
   var dbmon=$("dbmon");if(dbmon)dbmon.onchange=function(){if(dbEdit)return;dbMon=dbmon.value||dbMon;render()};
-  if($("db_ins")){var upd2=function(){var g=function(i){return parseFloat($(i).value)||0};var ins0=g("db_ins"),v=Math.round(ins0*g("db_gfp")/100);$("db_gfv").textContent=v?v:"";$("db_cv").textContent=ins0?(ins0-v):""};
-    ["db_ins","db_gfp"].forEach(function(i){$(i).oninput=upd2})}
+  if($("db_ins")){var upd2=function(){var g=function(i){return parseFloat($(i).value)||0};
+      var ins0=g("db_ins"),v=Math.round(ins0*g("db_gfp")/100);$("db_gfv").textContent=v?v:"";$("db_cv").textContent=ins0?(ins0-v):"";
+      var id0=$("dbm").value,ty=$("db_type").value,san=g("db_san"),oid=dbEdit||"";if(!(san>0))san=loanPrevSan(id0,ty,oid);
+      var paid=san>0?loanPaid(id0,ty,san,oid):0;
+      $("db_note").textContent=san>0?"Loan sanctioned "+san.toLocaleString()+" · instalments saved so far "+paid.toLocaleString()+" · you can still enter "+Math.max(0,san-paid).toLocaleString():""};
+    ["db_ins","db_gfp","db_san"].forEach(function(i){$(i).oninput=upd2});$("db_type").onchange=upd2;if($("dbm")){var prevDbm=$("dbm").onchange;$("dbm").onchange=function(){if(prevDbm)prevDbm.call(this);upd2()}}upd2()}
   go("dbback",function(){tab="home";render()});
   go("dbsave",async function(){
     var g=function(i){return parseFloat($(i).value)||0},id=$("dbm").value,m=members.find(function(x){return x.id===id}),mon2=$("dbmon").value||dbMon;
     var type=$("db_type").value,san=g("db_san"),ins=g("db_ins"),stage2=$("db_stage").value,gfp=g("db_gfp"),chk=$("db_chk").value.trim();
     if(!m||!(ins>0)){toast("Choose the member and enter the instalment amount.");return}
+    var oldId=dbEdit||"";
+    if(!(san>0)){san=loanPrevSan(id,type,oldId);if(san>0)$("db_san").value=san}
+    if(!(san>0)){toast("Enter the loan sanctioned.");return}
+    var paid=loanPaid(id,type,san,oldId);
+    if(paid+ins>san){toast("The total of the instalments ("+(paid+ins).toLocaleString()+") cannot be more than the loan sanctioned ("+san.toLocaleString()+"). You can still enter up to "+Math.max(0,san-paid).toLocaleString()+".",false,8000);return}
     var gfv=Math.round(ins*gfp/100),old=dbEdit?disb.find(function(x){return x.id===dbEdit}):null,today=new Date().toISOString().slice(0,10);
-    var rec={memberId:id,memberName:m.name,ownerUid:m.authUid,month:mon2,type:type,sanctioned:san,instalment:ins,stage:stage2,gfPct:gfp,gfValue:gfv,chequeValue:ins-gfv,gfApplied:true,v13:true,gfDate:old?old.gfDate:today,checkNo:chk};
+    var rec={memberId:id,memberName:m.name,ownerUid:m.authUid,month:mon2,type:type,sanctioned:san,instalment:ins,stage:stage2,gfPct:gfp,gfValue:gfv,chequeValue:ins-gfv,gfApplied:true,v16:true,gfDate:old?old.gfDate:today,checkNo:chk};
     try{
       await db.collection("disb").doc(old?old.id:uid()).set(rec);
-      var ch=[{memberId:id,month:mon2,type:type,delta:san,gf:gfv}];
-      if(old)ch.push({memberId:old.memberId,month:old.month,type:old.type,delta:old.v13?-(+old.sanctioned||0):0,gf:old.gfApplied?-(+old.gfValue||0):0});
+      var ch=[{memberId:id,month:mon2,type:type,delta:ins,gf:gfv}];
+      if(old)ch.push({memberId:old.memberId,month:old.month,type:old.type,delta:old.v16?-(+old.instalment||0):(old.v13?-(+old.sanctioned||0):0),gf:old.gfApplied?-(+old.gfValue||0):0});
       await applyDisbChanges(ch);
       var was=!!old;dbEdit="";dbMon=mon2;logAct(was?"Loan record updated":"Loan disbursed",m.name+" · "+type+" · "+ins+" · "+mon2);
-      toast(was?"Record updated. LTL / STL and GF of the month are corrected.":"Saved. The loan sanctioned is added to "+(type==="LTL"?"LTL":"STL")+" this month, and the GF value to GF this month (it continues in the next months).",true,5000);render()}
+      toast(was?"Record updated. LTL / STL and GF of the month are corrected.":"Saved. The instalment is added to "+(type==="LTL"?"LTL":"STL")+" this month, and the GF value to GF this month (it continues in the next months).",true,5000);render()}
     catch(e){toast("Could not save: "+(e&&e.message||e))}});
   document.querySelectorAll("[data-de]").forEach(function(b){b.onclick=function(){var r=disb.find(function(x){return x.id===b.dataset.de});if(!r)return;dbEdit=r.id;dbMon=r.month;dbMem=r.memberId;render();window.scrollTo(0,0)}});
   go("dbcancel",function(){dbEdit="";render()});
   document.querySelectorAll("[data-dd]").forEach(function(b){b.onclick=async function(){
     var id=b.dataset.dd,r=disb.find(function(x){return x.id===id});if(!r)return;
-    if(pend!=="disb"+id){pend="disb"+id;toast("Tap delete again to remove this record. The loan sanctioned and the GF value are taken back.");setTimeout(function(){pend=null},4500);return}
+    if(pend!=="disb"+id){pend="disb"+id;toast("Tap delete again to remove this record. The instalment and the GF value are taken back.");setTimeout(function(){pend=null},4500);return}
     pend=null;
-    try{await applyDisbChanges([{memberId:r.memberId,month:r.month,type:r.type,delta:r.v13?-(+r.sanctioned||0):0,gf:r.gfApplied?-(+r.gfValue||0):0}]);await db.collection("disb").doc(id).delete();logAct("Loan record deleted",r.memberName+" · "+r.type+" · "+r.instalment+" · "+r.month);toast("Record deleted.",true)}
+    try{await applyDisbChanges([{memberId:r.memberId,month:r.month,type:r.type,delta:r.v16?-(+r.instalment||0):(r.v13?-(+r.sanctioned||0):0),gf:r.gfApplied?-(+r.gfValue||0):0}]);await db.collection("disb").doc(id).delete();logAct("Loan record deleted",r.memberName+" · "+r.type+" · "+r.instalment+" · "+r.month);toast("Record deleted.",true)}
     catch(e){toast("Could not delete.")}}});
   /* administrators */
   go("aasave",async function(){var code=$("aa_code").value,nm=$("aa_name").value.trim(),pw=$("aa_pw").value,id=$("aa_id").value.trim();
